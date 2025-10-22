@@ -2,15 +2,41 @@
 
 A new Flutter project.
 
-## Getting Started
+## 🌐 API Endpoints
 
-This project is a starting point for a Flutter application.
+- Base URL: `http://100.105.194.33:8000`
+- Latest data: `/items/latest`
 
-A few resources to get you started if this is your first Flutter project:
+# uruchamianie aplikacji bez crud - to działa 
+flutter run -d chrome --web-browser-flag "--disable-web-security"
+# zwykłe  uruchamianie
+flutter run 
+# pakiety najnowsza wersja
+flutter upgrade
+# pakiety instalacja 
+flutter pub get    
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 🏗️ Architecture
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```
+lib/
+├── main.dart              # App entry point
+├── theme/
+│   └── app_theme.dart     # App theming
+├── screens/
+│   └── starts_screen.dart # Main screen
+├── services/
+│   └── connect_server.dart # API connection
+└── widgets/
+    ├── sensor_card.dart
+    └── sensor_data_display.dart
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+`
