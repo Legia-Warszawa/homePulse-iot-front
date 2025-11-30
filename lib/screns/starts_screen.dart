@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:homepulse/servises/connect_server.dart';
+import 'package:homepulse/servises/history_servis.dart';
+import 'package:homepulse/model/devices_iot.dart';
+import 'package:homepulse/widget/device_chart.dart';
 import '../widget/sensor_data_display.dart';
 
 class StartsScreen extends StatefulWidget {
@@ -14,31 +17,89 @@ class _StartsScreenState extends State<StartsScreen> {
   bool isLoading = false;
   Map<String, dynamic>? sensorData;
 
+  // Dane dla wykresów
+  List<EspRoom1> roomData = [];
+  List<EspOutside_1> outsideData = [];
+  List<EspFurnanceC02> furnaceData = [];
+
+  @override
+  void initState() {
+    super.initState();
+    testServerConnection();
+  }
+
   Future<void> testServerConnection() async {
     setState(() {
       isLoading = true;
       connectionStatus = 'Sprawdzanie...';
       sensorData = null;
+      roomData.clear();
+      outsideData.clear();
+      furnaceData.clear();
     });
 
-    var message = await ConnectServer.getLatestMessage();
+    try {
+      // Testujemy podstawowe połączenie
+      var connection = await ConnectServer.testConnection();
+      var message = await ConnectServer.getLatestMessage();
 
-    setState(() {
-      if (message != null) {
-        connectionStatus = 'Połączenie OK!';
-        sensorData = message;
-      } else {
-        connectionStatus = 'Brak połączenia z serwerem';
-        sensorData = null;
+      // Pobieramy dane historyczne z wszystkich urządzeń
+      print('=== POBIERANIE DANYCH HISTORYCZNYCH ===');
+
+      var pokojHistoryRaw = await HistoryService.getEspPokojHistory(limit: 1000);
+      var zewnatrzHistoryRaw = await HistoryService.getEspZewnatrzHistory(limit: 1000,);
+      var piecHistoryRaw = await HistoryService.getEspPiecHistory(limit: 1000);
+
+      // Konwertujemy dane do modeli
+      roomData = pokojHistoryRaw
+          .map((json) => EspRoom1.fromJson(json))
+          .toList();
+      outsideData = zewnatrzHistoryRaw
+          .map((json) => EspOutside_1.fromJson(json))
+          .toList();
+      furnaceData = piecHistoryRaw
+          .map((json) => EspFurnanceC02.fromJson(json))
+          .toList();
+
+      print('Pokój - ilość rekordów: ${roomData.length}');
+      print('Zewnątrz - ilość rekordów: ${outsideData.length}');
+      print('Piec - ilość rekordów: ${furnaceData.length}');
+
+      if (roomData.isNotEmpty) {
+        print(
+          'Pierwszy rekord pokoju: ${roomData.first.fullDateTime} - ${roomData.first.temperature}°C',
+        );
       }
-      isLoading = false;
-    });
+
+      print('=== KONIEC POBIERANIA DANYCH ===\n');
+
+      setState(() {
+        if (message != null ||
+            roomData.isNotEmpty ||
+            outsideData.isNotEmpty ||
+            furnaceData.isNotEmpty) {
+          connectionStatus = 'Połączenie OK! Pobrano dane historyczne.';
+          sensorData = message;
+        } else {
+          connectionStatus = 'Połączenie OK, ale brak danych historycznych.';
+          sensorData = message;
+        }
+        isLoading = false;
+      });
+    } catch (e) {
+      print('BŁĄD podczas pobierania danych: $e');
+      setState(() {
+        connectionStatus = 'Błąd połączenia: $e';
+        sensorData = null;
+        isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Center(child: Text('Home Pulse')),
@@ -56,12 +117,7 @@ class _StartsScreenState extends State<StartsScreen> {
               : Icon(Icons.refresh),
           iconSize: 28,
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.settings),
-            onPressed: () {},
-          )
-        ],
+        actions: [IconButton(icon: Icon(Icons.settings), onPressed: () {})],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -75,55 +131,20 @@ class _StartsScreenState extends State<StartsScreen> {
               ),
             ),
             SizedBox(height: 20),
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: connectionStatus.contains('OK')
-                      ? Colors.green
-                      : connectionStatus.contains('Brak')
-                          ? Colors.red
-                          : theme.colorScheme.secondary,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    connectionStatus.contains('OK')
-                        ? Icons.check_circle
-                        : connectionStatus.contains('Brak')
-                            ? Icons.error
-                            : Icons.info,
-                    color: connectionStatus.contains('OK')
-                        ? Colors.green
-                        : connectionStatus.contains('Brak')
-                            ? Colors.red
-                            : theme.colorScheme.secondary,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Status: $connectionStatus',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: connectionStatus.contains('OK')
-                          ? Colors.green
-                          : connectionStatus.contains('Brak')
-                              ? Colors.red
-                              : theme.colorScheme.onSurface,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 20),
-            if (sensorData != null)
+
+            // Wyświetlanie wykresów gdy mamy dane
+            if (roomData.isNotEmpty ||
+                outsideData.isNotEmpty ||
+                furnaceData.isNotEmpty)
               Expanded(
-                child: SensorDataDisplay(sensorData: sensorData!),
+                child: DeviceChartsWidget(
+                  roomData: roomData,
+                  outsideData: outsideData,
+                  furnaceData: furnaceData,
+                ),
               )
+            else if (sensorData != null)
+              Expanded(child: SensorDataDisplay(sensorData: sensorData!))
             else if (connectionStatus != 'Nie sprawdzono' &&
                 connectionStatus != 'Sprawdzanie...')
               Expanded(
