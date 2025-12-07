@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../model/devices_iot.dart';
+import '../../model/devices_iot.dart';
 
 class InteractiveFurnaceChart extends StatefulWidget {
   final List<EspFurnanceC02> furnaceData;

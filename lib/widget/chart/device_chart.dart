@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:homepulse/widget/Interactive_furnace_chart.dart';
-import 'package:homepulse/widget/Interactive_outside_chart.dart';
-import 'package:homepulse/widget/Interactive_room_chart.dart';
-import '../model/devices_iot.dart';
+import 'package:homepulse/widget/chart/Interactive_furnace_chart.dart';
+import 'package:homepulse/widget/chart/Interactive_outside_chart.dart';
+import 'package:homepulse/widget/chart/Interactive_room_chart.dart';
+import '../../model/devices_iot.dart';
 
 class DeviceChartsWidget extends StatelessWidget {
   final List<EspRoom1> roomData;

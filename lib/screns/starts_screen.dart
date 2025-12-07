@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:homepulse/servises/connect_server.dart';
 import 'package:homepulse/servises/history_servis.dart';
 import 'package:homepulse/model/devices_iot.dart';
-import 'package:homepulse/widget/device_chart.dart';
+import 'package:homepulse/widget/chart/device_chart.dart';
 import '../widget/sensor_data_display.dart';
 
 class StartsScreen extends StatefulWidget {
@@ -119,6 +119,7 @@ class _StartsScreenState extends State<StartsScreen> {
         ),
         actions: [IconButton(icon: Icon(Icons.settings), onPressed: () {})],
       ),
+       
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
