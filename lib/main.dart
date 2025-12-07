@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:homepulse/screns/starts_screen.dart';
+import 'package:homepulse/screns/tabs.dart';
 import 'package:homepulse/theme/app_theme.dart';
 
 void main() {
@@ -15,7 +16,8 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
        debugShowCheckedModeBanner: false, 
       theme: AppTheme.lightTheme,
-      home: const StartsScreen(),
+      home: TabsScreen(),
+      //const StartsScreen(),
     );
   }
 }

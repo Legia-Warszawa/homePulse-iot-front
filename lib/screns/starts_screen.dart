@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:homepulse/screns/tabs.dart';
 import 'package:homepulse/servises/connect_server.dart';
 import 'package:homepulse/servises/history_servis.dart';
 import 'package:homepulse/model/devices_iot.dart';
@@ -119,7 +120,7 @@ class _StartsScreenState extends State<StartsScreen> {
         ),
         actions: [IconButton(icon: Icon(Icons.settings), onPressed: () {})],
       ),
-       
+       bottomNavigationBar: TabsScreen(),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -134,20 +135,22 @@ class _StartsScreenState extends State<StartsScreen> {
             SizedBox(height: 20),
 
             // Wyświetlanie wykresów gdy mamy dane
-            if (roomData.isNotEmpty ||
-                outsideData.isNotEmpty ||
-                furnaceData.isNotEmpty)
-              Expanded(
-                child: DeviceChartsWidget(
-                  roomData: roomData,
-                  outsideData: outsideData,
-                  furnaceData: furnaceData,
-                ),
-              )
-            else if (sensorData != null)
-              Expanded(child: SensorDataDisplay(sensorData: sensorData!))
-            else if (connectionStatus != 'Nie sprawdzono' &&
-                connectionStatus != 'Sprawdzanie...')
+            // if (roomData.isNotEmpty ||
+            //     outsideData.isNotEmpty ||
+            //     furnaceData.isNotEmpty)
+            //   Expanded(
+            //     child:
+
+            //     //  DeviceChartsWidget(
+            //     //   roomData: roomData,
+            //     //   outsideData: outsideData,
+            //     //   furnaceData: furnaceData,
+            //     // ),
+            //   )
+            // else if (sensorData != null)
+            //   Expanded(child: SensorDataDisplay(sensorData: sensorData!))
+            // else if (connectionStatus != 'Nie sprawdzono' &&
+            //     connectionStatus != 'Sprawdzanie...')
               Expanded(
                 child: Center(
                   child: Column(
