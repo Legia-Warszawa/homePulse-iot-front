@@ -4,7 +4,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ConnectServer {
-  static const String baseUrl = 'http://100.105.194.33:8000';
+  static const String baseUrl = 'http://192.168.1.12:8000';
   static const String api = 'items';
   static const String latestEndpoint = 'latest';
 

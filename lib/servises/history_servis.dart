@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class HistoryService {
-  static const String baseUrl = 'http://100.105.194.33:8000';
+  static const String baseUrl = 'http://192.168.1.12:8000';
   static const String historyEndpoint = '/items/history';
   static const String pokuj = 'esp-pokoj';
   static const String zewnatrz = 'esp-zewnatrz';
