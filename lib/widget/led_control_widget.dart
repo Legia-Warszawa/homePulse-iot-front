@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http; // Pamiętaj o dodaniu 'http' do pubspec.yaml
-import 'dart:convert'; // Do parsowania odpowiedzi JSON
+import 'package:http/http.dart' as http; 
+import 'dart:convert'; 
 
 // --- STAŁA: Adres Twojego Backendu FastAPI ---
-// Upewnij się, że ten adres jest dostępny z Twojego urządzenia/emulatora!
-// Jeśli FastAPI jest na kontenerze w Proxmox, użyj IP hosta Proxmox, a nie localhost.
+
 const String _baseUrl = 'http://192.168.1.12:8000'; 
 // ---------------------------------------------
 
@@ -68,7 +67,7 @@ class _LedControlWidgetState extends State<LedControlWidget> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                // PRZYCISK WŁĄCZ
+                // PRZYCISK on
                 ElevatedButton.icon(
                   onPressed: () => _setLedState('on'),
                   icon: const Icon(Icons.lightbulb_outline),
@@ -79,7 +78,7 @@ class _LedControlWidgetState extends State<LedControlWidget> {
                   ),
                 ),
                 
-                // PRZYCISK WYŁĄCZ
+                // PRZYCISK off
                 ElevatedButton.icon(
                   onPressed: () => _setLedState('off'),
                   icon: Icon(Icons.lightbulb_outline_sharp),

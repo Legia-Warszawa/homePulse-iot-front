@@ -16,16 +16,16 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
   DateTime selectedDay = DateTime.now();
   List<EspFurnanceC02> filteredData = [];
 
-  // Zmienne X przechowują TIMESTAMPY (milisekundy od Epoki)
+  // Zmienne X przechowuja TIMESTAMPY (milisekundy od Epoki)
   late double minX;
   late double maxX;
   double minY = 0;
   double maxY = 40;
   
-  // Stałe czasowe do operacji (w milisekundach)
+  // Stale czasowe do operacji (w milisekundach)
   static const double msInHour = 3600 * 1000;
   static const double panDeltaHours = 2; // O ile godzin przesuwamy widok
-  static const double initialRangeHours = 4; // Początkowy widok 4h
+  static const double initialRangeHours = 4; // Poczatkowy widok 4h
 
   @override
   void initState() {
@@ -35,7 +35,7 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
   }
   
   // ============================================================
-  //     FILTROWANIE I INICJALIZACJA ZAKRESÓW CZASOWYCH
+  //     FILTROWANIE I INICJALIZACJA ZAKRESOW CZASOWYCH
   // ============================================================
   void _filterDataAndInitializeLimits() {
     // 1. Filtracja
@@ -67,7 +67,7 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
     
     double currentRange = absoluteMaxX - absoluteMinX;
 
-    // Ustawienie początkowego widoku na OSTATNIE 4H (lub cały zakres)
+    // Ustawienie poczatkowego widoku na OSTATNIE 4H (lub caly zakres)
     if (currentRange > initialRangeHours * msInHour) {
       minX = absoluteMaxX - initialRangeHours * msInHour; 
       maxX = absoluteMaxX;
@@ -94,7 +94,7 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
       final double absoluteMinX = filteredData.first.timestamp.millisecondsSinceEpoch.toDouble();
       final double absoluteMaxX = filteredData.last.timestamp.millisecondsSinceEpoch.toDouble();
 
-      // Zabezpieczenie przed wyjściem poza skrajne wartości danych
+      // Zabezpieczenie przed wyjsciem poza skrajne wartosci danych
       if (minX < absoluteMinX) {
         minX = absoluteMinX;
         maxX = absoluteMinX + currentRange;
@@ -139,11 +139,11 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
   void _resetZoom() {
     if (filteredData.isEmpty) return;
     setState(() {
-      _filterDataAndInitializeLimits(); // Resetuje do domyślnych 4h
+      _filterDataAndInitializeLimits(); // Resetuje do domyslnych 4h
     });
   }
   
-  // --- POPRAWNA FUNKCJA Formatująca Tytuły na Osi X (Używa intl) ---
+  // --- POPRAWNA FUNKCJA Formatujaca Tytuly na Osi X (Uzywa intl) ---
 
   Widget _getBottomTitles(double value, TitleMeta meta) {
     // value to timestamp w milisekundach
@@ -168,7 +168,7 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
   // ============================================================
   @override
   Widget build(BuildContext context) {
-    final double verticalIntervalMs = panDeltaHours * msInHour; // Interwał siatki co 2 godziny
+    final double verticalIntervalMs = panDeltaHours * msInHour; // Interwal siatki co 2 godziny
 
     return Card(
       clipBehavior: Clip.hardEdge,
@@ -178,7 +178,7 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             
-            // --- WYBÓR DNIA Z KALENDARZA ---
+            // --- WYBOR DNIA Z KALENDARZA ---
             TextButton.icon(
               icon: const Icon(Icons.calendar_today),
               label: Text(
@@ -213,10 +213,10 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 IconButton(onPressed: _panLeft, icon: const Icon(Icons.arrow_back), tooltip: 'Starsze (2h wstecz)'),
-                IconButton(onPressed: _zoomIn, icon: const Icon(Icons.zoom_in), tooltip: 'Przybliż'),
+                IconButton(onPressed: _zoomIn, icon: const Icon(Icons.zoom_in), tooltip: 'Przybliz'),
                 IconButton(onPressed: _zoomOut, icon: const Icon(Icons.zoom_out), tooltip: 'Oddal'),
                 IconButton(onPressed: _resetZoom, icon: const Icon(Icons.refresh), tooltip: 'Reset widoku'),
-                IconButton(onPressed: _panRight, icon: const Icon(Icons.arrow_forward), tooltip: 'Nowsze (2h w przód)'),
+                IconButton(onPressed: _panRight, icon: const Icon(Icons.arrow_forward), tooltip: 'Nowsze (2h w przod)'),
               ],
             ),
 
@@ -249,7 +249,7 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
                               getTooltipItems: (spots) {
                                 return spots.map((spot) {
                                   final dateTime = DateTime.fromMillisecondsSinceEpoch(spot.x.toInt());
-                                  // Użycie formatowania intl w tooltipie
+                                  // Uzycie formatowania intl w tooltipie
                                   return LineTooltipItem(
                                     "${spot.y.toStringAsFixed(1)}°C\n${DateFormat('HH:mm:ss').format(dateTime)}",
                                     const TextStyle(color: Colors.white),
@@ -262,7 +262,7 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
                           gridData: FlGridData(
                             show: true,
                             horizontalInterval: (maxY - minY) / 6,
-                            verticalInterval: verticalIntervalMs, // Interwał czasowy
+                            verticalInterval: verticalIntervalMs, // Interwal czasowy
                           ),
 
                           titlesData: FlTitlesData(
@@ -271,7 +271,7 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
                                 showTitles: true,
                                 interval: (maxY - minY) / 6,
                                 reservedSize: 50,
-                                // POPRAWKA BŁĘDU: Dodano 'meta'
+                                // POPRAWKA BLEDU: Dodano 'meta'
                                 getTitlesWidget: (value, meta) {
                                   return Text("${value.toStringAsFixed(1)}°C", style: const TextStyle(fontSize: 9));
                                 },
@@ -280,9 +280,9 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
                             bottomTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
-                                interval: verticalIntervalMs, // Interwał czasowy
+                                interval: verticalIntervalMs, // Interwal czasowy
                                 reservedSize: 40,
-                                getTitlesWidget: _getBottomTitles, // Używamy funkcji formatującej czas
+                                getTitlesWidget: _getBottomTitles, // Uzywamy funkcji formatujacej czas
                               ),
                             ),
                             topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -297,7 +297,7 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
                           lineBarsData: [
                             LineChartBarData(
                               spots: filteredData
-                                  // KLUCZOWE MAPOWANIE: Oś X = Timestamp w ms
+                                  // KLUCZOWE MAPOWANIE: Os X = Timestamp w ms
                                   .map((e) => FlSpot(
                                         e.timestamp.millisecondsSinceEpoch.toDouble(),
                                         e.temperature,
@@ -320,7 +320,7 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
             // Informacja o aktualnym zakresie czasowym
             Center(
               child: Text(
-                "Wyświetlany zakres: ${DateFormat('HH:mm:ss').format(DateTime.fromMillisecondsSinceEpoch(minX.toInt()))} - ${DateFormat('HH:mm:ss').format(DateTime.fromMillisecondsSinceEpoch(maxX.toInt()))}",
+                "Wyswietlany zakres: ${DateFormat('HH:mm:ss').format(DateTime.fromMillisecondsSinceEpoch(minX.toInt()))} - ${DateFormat('HH:mm:ss').format(DateTime.fromMillisecondsSinceEpoch(maxX.toInt()))}",
                 style: const TextStyle(fontSize: 11, color: Colors.grey),
               ),
             ),

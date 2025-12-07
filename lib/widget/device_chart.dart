@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 // Pakiet fl_chart nie jest potrzebny w tym pliku, ale go zostawię dla kontekstu:
 import 'package:fl_chart/fl_chart.dart'; 
 
-// Importy Twoich lokalnych widgetów i modeli
 import 'package:homepulse/widget/Interactive_furnace_chart.dart';
 import 'package:homepulse/widget/Interactive_outside_chart.dart';
 import 'package:homepulse/widget/Interactive_room_chart.dart';
-import 'package:homepulse/widget/led_control_widget.dart'; // <--- WIDŻET STEROWANIA
+import 'package:homepulse/widget/led_control_widget.dart'; 
+import 'package:homepulse/widget/interactive_house_map.dart'; 
 import '../model/devices_iot.dart';
 
 class DeviceChartsWidget extends StatelessWidget {
@@ -21,7 +21,7 @@ class DeviceChartsWidget extends StatelessWidget {
     required this.furnaceData,
   }) : super(key: key);
   
-  // Pomocniczy widget do legendy (został w pliku, gdzie jest używany)
+  // Pomocniczy widget do legendy 
   Widget _buildLegendItem(String label, Color color) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -46,12 +46,12 @@ class DeviceChartsWidget extends StatelessWidget {
       child: Column(
         children: [
           
-          // ===========================================
-          // 🚀 WIDŻET STEROWANIA LEDAMI
-          // ===========================================
+        
           const LedControlWidget(),
           
           const SizedBox(height: 20),
+
+          InteractiveHouseMap(roomData: roomData),
 
           // Wykres Pokoju 1
           if (roomData.isNotEmpty) InteractiveRoomChart(roomData: roomData),
@@ -64,8 +64,7 @@ class DeviceChartsWidget extends StatelessWidget {
           // Wykres Pieca
           if (furnaceData.isNotEmpty) InteractiveFurnaceChart(furnaceData: furnaceData),
           
-          // Jeśli masz inne widgety, które używały _buildOutsideChart()
-          // ... to te widżety powinny być używane zamiast nich.
+          
         ],
       ),
     );
