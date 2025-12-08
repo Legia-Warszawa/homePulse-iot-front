@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:homepulse/screns/furnance.dart';
+import 'package:homepulse/screns/interactive_home.dart';
 import 'package:homepulse/screns/outside.dart';
 import 'package:homepulse/screns/room.dart';
 class TabsScreen  extends StatefulWidget{
@@ -19,9 +20,10 @@ class _TabsScreenState extends State<TabsScreen>{
   int _selectedPageIndex = 0;
 
   final List<Widget> _pages = [
-    RoomChartScreen(),      
-    OutsideChartScreen(),   
-    FurnaceChartScreen(),  
+    InteractiveHouseMap(),
+    RoomChartScreen(),
+    OutsideChartScreen(),
+    FurnaceChartScreen(),
   ];
    @override
     void initState(){
@@ -51,10 +53,12 @@ class _TabsScreenState extends State<TabsScreen>{
            showUnselectedLabels: true,
           onTap: _selectPage,
           items: [
-       BottomNavigationBarItem(icon: Icon(Icons.room), label: 'Pokój'),
-          BottomNavigationBarItem(icon: Icon(Icons.park), label: 'Zewnątrz'),
-          BottomNavigationBarItem(icon: Icon(Icons.fireplace), label: 'Piec'),
-        ],)
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home Map'),
+            BottomNavigationBarItem(icon: Icon(Icons.room), label: 'Pokój'),
+            BottomNavigationBarItem(icon: Icon(Icons.park), label: 'Zewnątrz'),
+            BottomNavigationBarItem(icon: Icon(Icons.fireplace), label: 'Piec'),
+          ],
+        )
        ],
     ),
    );
