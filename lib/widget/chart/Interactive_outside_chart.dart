@@ -190,209 +190,211 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
     );
     final int activeTab = widget.selectedTab; // używamy parametru od rodzica
 
-    return Card(
-      clipBehavior: Clip.hardEdge,
-      child: Padding(
-        padding: EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Dane Zewnętrzne',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-
-            // Przyciski kontrolne (pan/zoom)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                IconButton(onPressed: _panLeft, icon: Icon(Icons.arrow_back)),
-                IconButton(onPressed: _zoomIn, icon: Icon(Icons.zoom_in)),
-                IconButton(onPressed: _zoomOut, icon: Icon(Icons.zoom_out)),
-                IconButton(onPressed: _resetZoom, icon: Icon(Icons.refresh)),
-                IconButton(
-                  onPressed: _panRight,
-                  icon: Icon(Icons.arrow_forward),
-                ),
-              ],
-            ),
-
-            SizedBox(height: 12),
-
-            Container(
-              height: chartHeight,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300, width: 1),
+    return SingleChildScrollView(
+      child: Card(
+        clipBehavior: Clip.hardEdge,
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Dane Zewnętrzne',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
-              child: Padding(
-                padding: EdgeInsets.all(8),
-                child: data.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Brak danych',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      )
-                    : LineChart(
-                        LineChartData(
-                          minX: minX,
-                          maxX: maxX,
-                          minY: minY,
-                          maxY: maxY,
-                          clipData: FlClipData.all(),
-                          lineTouchData: LineTouchData(
-                            enabled: true,
-                            touchTooltipData: LineTouchTooltipData(
-                              tooltipBorderRadius: BorderRadius.circular(8),
-                              tooltipPadding: EdgeInsets.all(8),
-                              tooltipMargin: 12,
-                              fitInsideHorizontally: true,
-                              fitInsideVertically: true,
-                              getTooltipItems: (touchedSpots) {
-                                return touchedSpots
-                                    .map((spot) {
-                                      final idx = spot.x.toInt();
-                                      if (idx >= 0 && idx < data.length) {
-                                        final d = data[idx];
-                                        if (activeTab == 0) {
-                                          return LineTooltipItem(
-                                            'Temp: ${d.temperature.toStringAsFixed(1)}°C\n${d.timestamp!.hour.toString().padLeft(2, '0')}:${d.timestamp!.minute.toString().padLeft(2, '0')}',
-                                            TextStyle(color: Colors.white),
-                                          );
-                                        } else if (activeTab == 1) {
-                                          return LineTooltipItem(
-                                            'Wilgotność: ${d.humidity.toStringAsFixed(1)}%\n${d.timestamp!.hour.toString().padLeft(2, '0')}:${d.timestamp!.minute.toString().padLeft(2, '0')}',
-                                            TextStyle(color: Colors.white),
-                                          );
-                                        } else {
-                                          return LineTooltipItem(
-                                            'Ciśnienie: ${d.pressure.toStringAsFixed(0)} hPa\n${d.timestamp!.hour.toString().padLeft(2, '0')}:${d.timestamp!.minute.toString().padLeft(2, '0')}',
-                                            TextStyle(color: Colors.white),
-                                          );
+              SizedBox(height: 8),
+      
+              // Przyciski kontrolne (pan/zoom)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(onPressed: _panLeft, icon: Icon(Icons.arrow_back)),
+                  IconButton(onPressed: _zoomIn, icon: Icon(Icons.zoom_in)),
+                  IconButton(onPressed: _zoomOut, icon: Icon(Icons.zoom_out)),
+                  IconButton(onPressed: _resetZoom, icon: Icon(Icons.refresh)),
+                  IconButton(
+                    onPressed: _panRight,
+                    icon: Icon(Icons.arrow_forward),
+                  ),
+                ],
+              ),
+      
+              SizedBox(height: 12),
+      
+              Container(
+                height: chartHeight,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300, width: 1),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(8),
+                  child: data.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Brak danych',
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                        )
+                      : LineChart(
+                          LineChartData(
+                            minX: minX,
+                            maxX: maxX,
+                            minY: minY,
+                            maxY: maxY,
+                            clipData: FlClipData.all(),
+                            lineTouchData: LineTouchData(
+                              enabled: true,
+                              touchTooltipData: LineTouchTooltipData(
+                                tooltipBorderRadius: BorderRadius.circular(8),
+                                tooltipPadding: EdgeInsets.all(8),
+                                tooltipMargin: 12,
+                                fitInsideHorizontally: true,
+                                fitInsideVertically: true,
+                                getTooltipItems: (touchedSpots) {
+                                  return touchedSpots
+                                      .map((spot) {
+                                        final idx = spot.x.toInt();
+                                        if (idx >= 0 && idx < data.length) {
+                                          final d = data[idx];
+                                          if (activeTab == 0) {
+                                            return LineTooltipItem(
+                                              'Temp: ${d.temperature.toStringAsFixed(1)}°C\n${d.timestamp!.hour.toString().padLeft(2, '0')}:${d.timestamp!.minute.toString().padLeft(2, '0')}',
+                                              TextStyle(color: Colors.white),
+                                            );
+                                          } else if (activeTab == 1) {
+                                            return LineTooltipItem(
+                                              'Wilgotność: ${d.humidity.toStringAsFixed(1)}%\n${d.timestamp!.hour.toString().padLeft(2, '0')}:${d.timestamp!.minute.toString().padLeft(2, '0')}',
+                                              TextStyle(color: Colors.white),
+                                            );
+                                          } else {
+                                            return LineTooltipItem(
+                                              'Ciśnienie: ${d.pressure.toStringAsFixed(0)} hPa\n${d.timestamp!.hour.toString().padLeft(2, '0')}:${d.timestamp!.minute.toString().padLeft(2, '0')}',
+                                              TextStyle(color: Colors.white),
+                                            );
+                                          }
                                         }
-                                      }
-                                      return null;
-                                    })
-                                    .whereType<LineTooltipItem>()
-                                    .toList();
-                              },
-                            ),
-                          ),
-                          gridData: FlGridData(
-                            show: true,
-                            horizontalInterval: (maxY - minY) / 8,
-                            verticalInterval: (maxX - minX) / 6,
-                          ),
-                          titlesData: FlTitlesData(
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 60,
-                                interval: (maxY - minY) / 8,
-                                getTitlesWidget: (value, meta) {
-                                  if (activeTab == 0) {
-                                    return Padding(
-                                      padding: EdgeInsets.only(right: 6),
-                                      child: Text(
-                                        '${value.toInt()}°C',
-                                        style: TextStyle(fontSize: 10),
-                                      ),
-                                    );
-                                  } else if (activeTab == 1) {
-                                    return Padding(
-                                      padding: EdgeInsets.only(right: 6),
-                                      child: Text(
-                                        '${value.toInt()}%',
-                                        style: TextStyle(fontSize: 10),
-                                      ),
-                                    );
-                                  } else {
-                                    return Padding(
-                                      padding: EdgeInsets.only(right: 6),
-                                      child: Text(
-                                        '${(value + 900).toInt()}',
-                                        style: TextStyle(fontSize: 10),
-                                      ),
-                                    );
-                                  }
+                                        return null;
+                                      })
+                                      .whereType<LineTooltipItem>()
+                                      .toList();
                                 },
                               ),
                             ),
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 36,
-                                interval: (maxX - minX) / 6,
-                                getTitlesWidget: (value, meta) {
-                                  final idx = value.toInt();
-                                  if (idx >= 0 && idx < data.length) {
-                                    final ts = data[idx].timestamp!;
-                                    return Padding(
-                                      padding: EdgeInsets.only(top: 4),
-                                      child: Transform.rotate(
-                                        angle: -0.3,
+                            gridData: FlGridData(
+                              show: true,
+                              horizontalInterval: (maxY - minY) / 8,
+                              verticalInterval: (maxX - minX) / 6,
+                            ),
+                            titlesData: FlTitlesData(
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 60,
+                                  interval: (maxY - minY) / 8,
+                                  getTitlesWidget: (value, meta) {
+                                    if (activeTab == 0) {
+                                      return Padding(
+                                        padding: EdgeInsets.only(right: 6),
                                         child: Text(
-                                          '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}',
-                                          style: TextStyle(fontSize: 9),
+                                          '${value.toInt()}°C',
+                                          style: TextStyle(fontSize: 10),
                                         ),
-                                      ),
-                                    );
-                                  }
-                                  return Text('');
-                                },
+                                      );
+                                    } else if (activeTab == 1) {
+                                      return Padding(
+                                        padding: EdgeInsets.only(right: 6),
+                                        child: Text(
+                                          '${value.toInt()}%',
+                                          style: TextStyle(fontSize: 10),
+                                        ),
+                                      );
+                                    } else {
+                                      return Padding(
+                                        padding: EdgeInsets.only(right: 6),
+                                        child: Text(
+                                          '${(value + 900).toInt()}',
+                                          style: TextStyle(fontSize: 10),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 36,
+                                  interval: (maxX - minX) / 6,
+                                  getTitlesWidget: (value, meta) {
+                                    final idx = value.toInt();
+                                    if (idx >= 0 && idx < data.length) {
+                                      final ts = data[idx].timestamp!;
+                                      return Padding(
+                                        padding: EdgeInsets.only(top: 4),
+                                        child: Transform.rotate(
+                                          angle: -0.3,
+                                          child: Text(
+                                            '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}',
+                                            style: TextStyle(fontSize: 9),
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    return Text('');
+                                  },
+                                ),
+                              ),
+                              topTitles: AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              rightTitles: AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
                               ),
                             ),
-                            topTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
+                            borderData: FlBorderData(
+                              show: true,
+                              border: Border.all(color: Colors.grey.shade400),
                             ),
-                            rightTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
+                            lineBarsData: _barsForTab(activeTab),
                           ),
-                          borderData: FlBorderData(
-                            show: true,
-                            border: Border.all(color: Colors.grey.shade400),
-                          ),
-                          lineBarsData: _barsForTab(activeTab),
                         ),
-                      ),
-              ),
-            ),
-
-            SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildLegendItem(
-                  activeTab == 0
-                      ? 'Temperatura (°C)'
-                      : activeTab == 1
-                      ? 'Wilgotność (%)'
-                      : 'Ciśnienie (hPa)',
-                  activeTab == 0
-                      ? Colors.red
-                      : activeTab == 1
-                      ? Colors.green
-                      : Colors.purple,
                 ),
-              ],
-            ),
-
-            SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(vertical: 4),
-              child: Text(
-                'Wyświetlane punkty: ${minX.toInt()} - ${maxX.toInt()} z ${data.length}',
-                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
               ),
-            ),
-          ],
+      
+              SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildLegendItem(
+                    activeTab == 0
+                        ? 'Temperatura (°C)'
+                        : activeTab == 1
+                        ? 'Wilgotność (%)'
+                        : 'Ciśnienie (hPa)',
+                    activeTab == 0
+                        ? Colors.red
+                        : activeTab == 1
+                        ? Colors.green
+                        : Colors.purple,
+                  ),
+                ],
+              ),
+      
+              SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: Text(
+                  'Wyświetlane punkty: ${minX.toInt()} - ${maxX.toInt()} z ${data.length}',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
