@@ -1,3 +1,4 @@
+// ...existing code...
 import 'package:flutter/material.dart';
 import 'package:homepulse/servises/connect_server.dart';
 import 'package:homepulse/servises/history_servis.dart';
@@ -13,76 +14,65 @@ class RoomChartScreen extends StatefulWidget {
 }
 
 class _RoomChartScreenState extends State<RoomChartScreen> {
+  //late List<EspRoom1> _roomData;
   bool isLoading = false;
-  String connectionStatus = 'Oczekiwanie na dane...';
+  String connectionStatus = 'Nie sprawdzono';
   Map<String, dynamic>? sensorData;
+
   List<EspRoom1> roomData = [];
 
   @override
   void initState() {
     super.initState();
-    // Pobierz dane przy starcie
     uploadData();
+   // _roomData = List<EspRoom1>.from(widget.roomData);
   }
 
-  /// Główna funkcja pobierająca i filtrująca dane
   Future<void> uploadData() async {
     setState(() {
-      isLoading = true;
+      sensorData = null;
+      roomData.clear();
     });
-
     try {
-      // 1. Pobierz aktualny status z serwera
-      var message = await ConnectServer.getLatestMessage();
+       var message = await ConnectServer.getLatestMessage();
 
-      // 2. Pobierz historię z serwera
       var piecRoomRaw = await HistoryService.getEspPokojHistory(limit: 1000);
-      
-      // 3. Mapowanie JSON -> Model z FILTROWANIEM błędnych rekordów (np. > 100°C)
-      List<EspRoom1> cleanData = piecRoomRaw
+      roomData = piecRoomRaw
           .map((json) => EspRoom1.fromJson(json))
-          .where((record) {
-            // ZABEZPIECZENIE: Akceptuj tylko realne temperatury pokojowe.
-            // Odrzucamy wszystko powyżej 60 stopni (Twoje piki 100+ znikną).
-            return record.temperature < 60.0 && record.temperature > -15.0;
-          })
           .toList();
-
-      print('Pokój - pobrano: ${piecRoomRaw.length}, po filtracji: ${cleanData.length}');
+      print('Pokój - ilość rekordów: ${roomData.length}');
 
       setState(() {
-        roomData = cleanData;
-        sensorData = message;
-        connectionStatus = roomData.isNotEmpty 
-            ? 'Połączenie OK! Dane przefiltrowane.' 
-            : 'Brak poprawnych danych w historii.';
+           if (roomData.isNotEmpty) {
+             connectionStatus = 'Połączenie OK! Pobrano dane historyczne.';
+             sensorData = message;
+           }else {
+             connectionStatus = 'Połączenie OK, ale brak danych historycznych.';
+          sensorData = message;
+           }
       });
-
     } catch (e) {
-      print('BŁĄD POKÓJ: $e');
+        print('BŁĄD podczas pobierania danych: $e');
       setState(() {
         connectionStatus = 'Błąd połączenia: $e';
-      });
-    } finally {
-      setState(() {
-        isLoading = false;
+        sensorData = null;
+      
       });
     }
   }
 
-  /// Funkcja wywoływana przyciskiem odświeżania
+
   Future<void> testServerConnection() async {
-    await uploadData();
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(connectionStatus),
-          duration: const Duration(seconds: 2),
-          backgroundColor: connectionStatus.contains('Błąd') ? Colors.red : Colors.green,
-        ),
-      );
-    }
+    setState(() {
+      isLoading = true;
+      connectionStatus = 'Sprawdzanie...';
+    });
+
+    await Future.delayed(const Duration(seconds: 1)); 
+    setState(() {
+      connectionStatus = 'Zaktualizowano';
+      isLoading = false;
+    });
   }
 
   @override
@@ -94,60 +84,15 @@ class _RoomChartScreenState extends State<RoomChartScreen> {
           IconButton(
             onPressed: isLoading ? null : testServerConnection,
             icon: isLoading
-                ? const SizedBox(
-                    width: 20, 
-                    height: 20, 
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2, 
-                      color: Colors.white,
-                    ),
-                  )
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.refresh),
             tooltip: 'Odśwież',
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Pasek postępu ładowania
-          if (isLoading) const LinearProgressIndicator(),
-
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: roomData.isEmpty && !isLoading
-                  ? _buildEmptyState()
-                  : InteractiveRoomChart(roomData: roomData),
-            ),
-          ),
-          
-          // Stopka z informacją o ostatniej aktualizacji
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              connectionStatus,
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.cloud_off, size: 64, color: Colors.grey),
-          const SizedBox(height: 16),
-          const Text('Brak danych do wyświetlenia na wykresie'),
-          TextButton(
-            onPressed: uploadData,
-            child: const Text('Spróbuj ponownie'),
-          )
-        ],
+      body: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: InteractiveRoomChart(roomData: roomData),
       ),
     );
   }
