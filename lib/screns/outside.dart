@@ -128,30 +128,48 @@ class _OutsideChartScreenState extends State<OutsideChartScreen> {
     });
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
+    // Pobieramy primary color raz, żeby użyć go spójnie
+    final primaryColor = const Color(0xFFFF5722); 
+
     return DefaultTabController(
       length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Na zewnątrz - Wykres'),
-          bottom: TabBar(
-            indicator: BoxDecoration(
-              color: Colors.white, // tło aktywnej zakładki
-              borderRadius: BorderRadius.circular(6),
+          centerTitle: true,
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(60),
+            child: Container(
+              height: 50,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(50),
+              ),
+              child: TabBar(
+                indicator: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(50),
+                ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicatorPadding: const EdgeInsets.all(4), 
+                labelColor: primaryColor, 
+                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14 ),
+                unselectedLabelColor: Colors.white, // Tu zostawiłeś Black, upewnij się czy nie lepiej Colors.white.withOpacity(0.8)
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 14),
+                dividerColor: Colors.transparent,
+                tabs: const [
+                  Tab(text: 'Temperatura'),
+                  Tab(text: 'Wilgotność'),
+                  Tab(text: 'Ciśnienie'),
+                ],
+              ),
             ),
-            indicatorSize: TabBarIndicatorSize.tab,
-            labelColor: Theme.of(
-              context,
-            ).colorScheme.primary, // kolor tekstu wybranej
-            unselectedLabelColor: Colors.white, // kolor tekstu nie wybranej
-            labelStyle: TextStyle(fontWeight: FontWeight.w600),
-            unselectedLabelStyle: TextStyle(fontWeight: FontWeight.normal),
-            tabs: [
-              Tab(text: 'Temperatura'),
-              Tab(text: 'Wilgotność'),
-              Tab(text: 'Ciśnienie'),
-            ],
           ),
           actions: [
             IconButton(
@@ -171,146 +189,56 @@ class _OutsideChartScreenState extends State<OutsideChartScreen> {
           ],
         ),
         body: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
+          // Zmieniłem z .only(top: 12) na .symmetric(...)
+          // horizontal: 16.0 doda ładny odstęp z lewej i prawej strony
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0), 
+          child: TabBarView(
+            physics: const BouncingScrollPhysics(), 
             children: [
-              // kontrolki daty (kalendarz + prev/next)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(children: [
-                     
-                    ],
-                  ),
-                  // przycisk odśwież w AppBar nadal działa
-                ],
+              InteractiveOutsideChart(
+                outsideData: outsideData,
+                selectedTab: 0,
+                selectedDate: selectedDate,
+                onDateSelected: (date) => setState(() => selectedDate = date),
+                onSelectToday: _selectToday,
+                onSelectYesterday: _selectYesterday,
+                onSelectSevenDaysAgo: _selectSevenDaysAgo,
+                onSelectLastData: () {
+                  final valid = outsideData.where((d) => d.timestamp != null).toList();
+                  if (valid.isNotEmpty) setState(() => selectedDate = valid.last.timestamp);
+                },
+                onSelectPreviousDay: _selectPreviousDay,
+                onSelectNextDay: _selectNextDay,
               ),
-              SizedBox(height: 8),
-
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: MediaQuery.of(context).size.width,
-                  child: Row(
-                    children: [
-                      // pierwsze 3 przyciski maksymalnie z lewej
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            onPressed: _selectPreviousDay,
-                            icon: Icon(Icons.chevron_left),
-                          ),
-                          ElevatedButton.icon(
-                            onPressed: _pickDate,
-                            icon: Icon(Icons.calendar_today, size: 16),
-                            label: Text(
-                              selectedDate != null
-                                  ? '${selectedDate!.day.toString().padLeft(2, '0')}/${selectedDate!.month.toString().padLeft(2, '0')}/${selectedDate!.year}'
-                                  : 'Data',
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: _selectNextDay,
-                            icon: Icon(Icons.chevron_right),
-                          ),
-                          //SizedBox(width: 15),
-                        ],
-                      ),
-
-                      // reszta przycisków wyśrodkowana
-                      Expanded(
-                       // child: Center(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              QuickDateButton(
-                                label: 'Dziś',
-                                onPressed: _selectToday,
-                                isSelected:
-                                    selectedDate != null &&
-                                    selectedDate!
-                                            .difference(DateTime.now())
-                                            .inDays ==
-                                        0,
-                              ),
-                              SizedBox(width: 8),
-                              QuickDateButton(
-                                label: 'Wczoraj',
-                                onPressed: _selectYesterday,
-                                isSelected:
-                                    selectedDate != null &&
-                                    selectedDate ==
-                                        DateTime.now().subtract(
-                                          Duration(days: 1),
-                                        ),
-                              ),
-                              SizedBox(width: 8),
-                              QuickDateButton(
-                                label: '7 dni temu',
-                                onPressed: _selectSevenDaysAgo,
-                                isSelected:
-                                    selectedDate != null &&
-                                    selectedDate ==
-                                        DateTime.now().subtract(
-                                          Duration(days: 7),
-                                        ),
-                              ),
-                              SizedBox(width: 8),
-                              QuickDateButton(
-                                label: 'Ostatnie dane',
-                                onPressed: () {
-                                  final valid = outsideData
-                                      .where((d) => d.timestamp != null)
-                                      .toList();
-                                  if (valid.isNotEmpty)
-                                    setState(
-                                      () => selectedDate = valid.last.timestamp,
-                                    );
-                                },
-                                isSelected:
-                                    selectedDate != null &&
-                                    outsideData
-                                        .where((d) => d.timestamp != null)
-                                        .isNotEmpty &&
-                                    selectedDate ==
-                                        outsideData
-                                            .where((d) => d.timestamp != null)
-                                            .toList()
-                                            .last
-                                            .timestamp,
-                              ),
-                            ],
-                          ),
-                       // ),
-                      ),
-                    ],
-                  ),
-                ),
+              InteractiveOutsideChart(
+                outsideData: outsideData,
+                selectedTab: 1,
+                selectedDate: selectedDate,
+                onDateSelected: (date) => setState(() => selectedDate = date),
+                onSelectToday: _selectToday,
+                onSelectYesterday: _selectYesterday,
+                onSelectSevenDaysAgo: _selectSevenDaysAgo,
+                onSelectLastData: () {
+                  final valid = outsideData.where((d) => d.timestamp != null).toList();
+                  if (valid.isNotEmpty) setState(() => selectedDate = valid.last.timestamp);
+                },
+                onSelectPreviousDay: _selectPreviousDay,
+                onSelectNextDay: _selectNextDay,
               ),
-
-              SizedBox(height: 12),
-
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    InteractiveOutsideChart(
-                      outsideData: outsideData,
-                      selectedTab: 0,
-                      selectedDate: selectedDate,
-                    ),
-                    InteractiveOutsideChart(
-                      outsideData: outsideData,
-                      selectedTab: 1,
-                      selectedDate: selectedDate,
-                    ),
-                    InteractiveOutsideChart(
-                      outsideData: outsideData,
-                      selectedTab: 2,
-                      selectedDate: selectedDate,
-                    ),
-                  ],
-                ),
+              InteractiveOutsideChart(
+                outsideData: outsideData,
+                selectedTab: 2,
+                selectedDate: selectedDate,
+                onDateSelected: (date) => setState(() => selectedDate = date),
+                onSelectToday: _selectToday,
+                onSelectYesterday: _selectYesterday,
+                onSelectSevenDaysAgo: _selectSevenDaysAgo,
+                onSelectLastData: () {
+                  final valid = outsideData.where((d) => d.timestamp != null).toList();
+                  if (valid.isNotEmpty) setState(() => selectedDate = valid.last.timestamp);
+                },
+                onSelectPreviousDay: _selectPreviousDay,
+                onSelectNextDay: _selectNextDay,
               ),
             ],
           ),

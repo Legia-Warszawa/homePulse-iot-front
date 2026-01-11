@@ -11,8 +11,9 @@ class AppTheme {
   static const Color _lightOnSurface = Color(0xFF1A1C1E);
 
   // DARK MODE (Deep Tech)
-  static const Color _darkPrimary = Color(0xFFFF8A65); // Neon Orange
-  static const Color _darkOnPrimary = Color(0xFF3E1C00);
+  // static const Color _darkPrimary = Color(0xFFFF8A65); // Neon Orange
+  static const Color _darkPrimary = Color(0xFFFF5722); // Nowy Orange
+  static const Color _darkOnPrimary = Color(0xFFFF5722);
   static const Color _darkBackground = Color(0xFF121212); // Czysta czerń lub bardzo ciemny szary
   static const Color _darkSurface = Color(0xFF1E1E24); // Grafit kart
   static const Color _darkOnSurface = Color(0xFFE2E2E6);
@@ -29,8 +30,8 @@ class AppTheme {
       secondary: Color(0xFF039BE5),
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: _lightBackground,
-      foregroundColor: _lightOnSurface,
+      backgroundColor: _lightPrimary,
+      foregroundColor: Colors.white,
       elevation: 0,
     ),
     cardTheme: CardThemeData( // Używamy CardThemeData
@@ -52,18 +53,18 @@ class AppTheme {
       secondary: Color(0xFF4FC3F7),
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: _darkBackground,
-      foregroundColor: _darkOnSurface,
+      backgroundColor: Color(0xFFFF5722),
+      foregroundColor: Colors.white,
       elevation: 0,
     ),
-    cardTheme: CardThemeData( // Używamy CardThemeData
+    cardTheme: CardThemeData( 
       color: _darkSurface, // Grafitowe tło karty
       elevation: 4,
       shadowColor: Colors.black54,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
     ),
     iconTheme: const IconThemeData(
-      color: _darkPrimary,
+      color: Colors.white,
     ),
   );
 }

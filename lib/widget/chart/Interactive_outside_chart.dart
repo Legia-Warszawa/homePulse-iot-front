@@ -1,19 +1,34 @@
-// ...existing code...
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart'; // Wymagane do formatowania daty
 import '../../model/devices_iot.dart';
+import '../../widget/quick_date_button.dart';
 
 class InteractiveOutsideChart extends StatefulWidget {
   final List<EspOutside_1> outsideData;
-  final int selectedTab; // 0=temp,1=hum,2=press
+  final int selectedTab; // 0=temp, 1=hum, 2=press
   final DateTime? selectedDate;
+  final ValueChanged<DateTime?>? onDateSelected;
+  final VoidCallback? onSelectToday;
+  final VoidCallback? onSelectYesterday;
+  final VoidCallback? onSelectSevenDaysAgo;
+  final VoidCallback? onSelectLastData;
+  final VoidCallback? onSelectPreviousDay;
+  final VoidCallback? onSelectNextDay;
+
   const InteractiveOutsideChart({
     Key? key,
     required this.outsideData,
     this.selectedTab = 0,
     this.selectedDate,
+    this.onDateSelected,
+    this.onSelectToday,
+    this.onSelectYesterday,
+    this.onSelectSevenDaysAgo,
+    this.onSelectLastData,
+    this.onSelectPreviousDay,
+    this.onSelectNextDay,
   }) : super(key: key);
 
   @override
@@ -23,7 +38,7 @@ class InteractiveOutsideChart extends StatefulWidget {
 
 class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
   double minX = 0;
-  double maxX = 50; // Pokaż do 50 punktów na raz (liczba punktów)
+  double maxX = 50;
   double minY = 0;
   double maxY = 1;
 
@@ -48,6 +63,7 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
 
   List<EspOutside_1> get _activeData => _getFilteredDataByDay();
 
+  // --- ORYGINALNE KOLORY I STYLE ---
   List<LineChartBarData> _barsForTab(int tab) {
     final list = _activeData;
     final spots = list.asMap().entries.map((e) {
@@ -66,8 +82,8 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
     final color = (tab == 0)
         ? Colors.red
         : (tab == 1)
-        ? Colors.green
-        : Colors.purple;
+            ? Colors.green
+            : Colors.purple;
 
     return [
       LineChartBarData(
@@ -84,16 +100,17 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
   void _adjustRanges() {
     final list = _activeData;
     if (list.isEmpty) {
-      setState(() {
-        minX = 0;
-        maxX = 1;
-        minY = 0;
-        maxY = 1;
-      });
+      if (mounted) {
+        setState(() {
+          minX = 0;
+          maxX = 1;
+          minY = 0;
+          maxY = 1;
+        });
+      }
       return;
     }
 
-    // wybierz wartości dla aktywnej zakładki
     final values = list.map((d) {
       if (widget.selectedTab == 0) return d.temperature;
       if (widget.selectedTab == 1) return d.humidity;
@@ -104,27 +121,26 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
     double vMax = values.reduce((a, b) => a > b ? a : b);
     final padding = math.max((vMax - vMin) * 0.12, 0.5);
 
-    setState(() {
-      minY = vMin - padding;
-      maxY = vMax + padding;
-      minX = 0;
-      // pokaż maksymalnie 50 punktów na raz lub mniej jeśli danych mniej
-      maxX = list.length > 50 ? 50.0 : list.length.toDouble();
-      if (maxX <= minX) maxX = minX + 1;
-    });
+    if (mounted) {
+      setState(() {
+        minY = vMin - padding;
+        maxY = vMax + padding;
+        minX = 0;
+        maxX = list.length > 50 ? 50.0 : list.length.toDouble();
+        if (maxX <= minX) maxX = minX + 1;
+      });
+    }
   }
 
   @override
   void initState() {
     super.initState();
-    // ustaw zakresy po pierwszym zbudowaniu (jeśli są dane)
     WidgetsBinding.instance.addPostFrameCallback((_) => _adjustRanges());
   }
 
   @override
   void didUpdateWidget(covariant InteractiveOutsideChart oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // jeśli zmieniły się dane lub wybrana data/zakładka — dopasuj zakresy
     if (oldWidget.outsideData != widget.outsideData ||
         oldWidget.selectedDate != widget.selectedDate ||
         oldWidget.selectedTab != widget.selectedTab) {
@@ -182,55 +198,167 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
   @override
   Widget build(BuildContext context) {
     final data = _getFilteredDataByDay();
-    final theme = Theme.of(context);
     final mq = MediaQuery.of(context);
-    final double chartHeight = (mq.size.height * 0.35).clamp(
-      160.0,
-      mq.size.height * 0.55,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // --- ZMIANA 1: ZWIĘKSZONA WYSOKOŚĆ ---
+    // Było 0.35, dajemy 0.55 żeby wykres był duży i czytelny
+    final double chartHeight = (mq.size.height * 0.55).clamp(
+      250.0,
+      mq.size.height * 0.75,
     );
-    final int activeTab = widget.selectedTab; // używamy parametru od rodzica
+    final int activeTab = widget.selectedTab;
 
     return SingleChildScrollView(
       child: Card(
         clipBehavior: Clip.hardEdge,
         child: Padding(
-          padding: EdgeInsets.all(12),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Dane Zewnętrzne',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-      
-              // Przyciski kontrolne (pan/zoom)
+              // --- ZMIANA 2: NAGŁÓWEK Z DATĄ W ROGU ---
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  IconButton(onPressed: _panLeft, icon: Icon(Icons.arrow_back)),
-                  IconButton(onPressed: _zoomIn, icon: Icon(Icons.zoom_in)),
-                  IconButton(onPressed: _zoomOut, icon: Icon(Icons.zoom_out)),
-                  IconButton(onPressed: _resetZoom, icon: Icon(Icons.refresh)),
-                  IconButton(
-                    onPressed: _panRight,
-                    icon: Icon(Icons.arrow_forward),
+                  const Text(
+                    'Dane Zewnętrzne',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  
+                  // Kapsułka z datą (Strzałki + Kalendarz) w prawym rogu
+                  Container(
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left, size: 20),
+                          onPressed: widget.onSelectPreviousDay,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32),
+                        ),
+                        InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: widget.selectedDate ?? DateTime.now(),
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime.now(),
+                            );
+                            if (picked != null) {
+                              widget.onDateSelected?.call(picked);
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today, size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  widget.selectedDate != null
+                                      ? DateFormat('dd.MM.yyyy').format(widget.selectedDate!)
+                                      : 'Wybierz datę',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right, size: 20),
+                          onPressed: widget.onSelectNextDay,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-      
-              SizedBox(height: 12),
-      
+              
+              const SizedBox(height: 12),
+
+              // --- SZYBKIE FILTRY (Dziś/Wczoraj/7 dni) ---
+              // Zostawiamy je pod tytułem, bo są wygodne
+              widget.onSelectToday != null
+                  ? SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        // width: MediaQuery.of(context).size.width, // Opcjonalne
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            QuickDateButton(
+                              label: 'Dziś',
+                              onPressed: widget.onSelectToday!,
+                              isSelected: widget.selectedDate != null &&
+                                  widget.selectedDate!.difference(DateTime.now()).inDays == 0,
+                            ),
+                            const SizedBox(width: 8),
+                            QuickDateButton(
+                              label: 'Wczoraj',
+                              onPressed: widget.onSelectYesterday!,
+                              isSelected: widget.selectedDate != null &&
+                                  widget.selectedDate ==
+                                      DateTime.now().subtract(const Duration(days: 1)),
+                            ),
+                            const SizedBox(width: 8),
+                            QuickDateButton(
+                              label: '7 dni temu',
+                              onPressed: widget.onSelectSevenDaysAgo!,
+                              isSelected: widget.selectedDate != null &&
+                                  widget.selectedDate ==
+                                      DateTime.now().subtract(const Duration(days: 7)),
+                            ),
+                            const SizedBox(width: 8),
+                            QuickDateButton(
+                              label: 'Ostatnie dane',
+                              onPressed: widget.onSelectLastData!,
+                              isSelected: widget.selectedDate != null &&
+                                  widget.outsideData.where((d) => d.timestamp != null).isNotEmpty &&
+                                  widget.selectedDate ==
+                                      widget.outsideData.where((d) => d.timestamp != null).toList().last.timestamp,
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : const SizedBox(),
+              
+              const SizedBox(height: 8),
+
+              // --- PRZYCISKI KONTROLNE (STARE IKONY) ---
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(onPressed: _panLeft, icon: const Icon(Icons.arrow_back)),
+                  IconButton(onPressed: _zoomIn, icon: const Icon(Icons.zoom_in)),
+                  IconButton(onPressed: _zoomOut, icon: const Icon(Icons.zoom_out)),
+                  IconButton(onPressed: _resetZoom, icon: const Icon(Icons.refresh)),
+                  IconButton(onPressed: _panRight, icon: const Icon(Icons.arrow_forward)),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // --- WYKRES (ORYGINALNY WYGLĄD + WIĘKSZY ROZMIAR) ---
               Container(
                 height: chartHeight,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardTheme.color,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.grey.shade300, width: 1),
                 ),
                 child: Padding(
-                  padding: EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(8),
                   child: data.isEmpty
                       ? Center(
                           child: Text(
@@ -248,31 +376,30 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
                             lineTouchData: LineTouchData(
                               enabled: true,
                               touchTooltipData: LineTouchTooltipData(
-                                tooltipBorderRadius: BorderRadius.circular(8),
-                                tooltipPadding: EdgeInsets.all(8),
+                                // STARY STYL TOOLTIPA (z poprawką na nowe API)
+                                tooltipPadding: const EdgeInsets.all(8),
                                 tooltipMargin: 12,
                                 fitInsideHorizontally: true,
                                 fitInsideVertically: true,
                                 getTooltipItems: (touchedSpots) {
-                                  return touchedSpots
-                                      .map((spot) {
+                                  return touchedSpots.map((spot) {
                                         final idx = spot.x.toInt();
                                         if (idx >= 0 && idx < data.length) {
                                           final d = data[idx];
                                           if (activeTab == 0) {
                                             return LineTooltipItem(
                                               'Temp: ${d.temperature.toStringAsFixed(1)}°C\n${d.timestamp!.hour.toString().padLeft(2, '0')}:${d.timestamp!.minute.toString().padLeft(2, '0')}',
-                                              TextStyle(color: Colors.white),
+                                              TextStyle(color: Theme.of(context).cardTheme.color),
                                             );
                                           } else if (activeTab == 1) {
                                             return LineTooltipItem(
                                               'Wilgotność: ${d.humidity.toStringAsFixed(1)}%\n${d.timestamp!.hour.toString().padLeft(2, '0')}:${d.timestamp!.minute.toString().padLeft(2, '0')}',
-                                              TextStyle(color: Colors.white),
+                                              TextStyle(color: Theme.of(context).cardTheme.color),
                                             );
                                           } else {
                                             return LineTooltipItem(
                                               'Ciśnienie: ${d.pressure.toStringAsFixed(0)} hPa\n${d.timestamp!.hour.toString().padLeft(2, '0')}:${d.timestamp!.minute.toString().padLeft(2, '0')}',
-                                              TextStyle(color: Colors.white),
+                                              TextStyle(color: Theme.of(context).cardTheme.color),
                                             );
                                           }
                                         }
@@ -297,26 +424,26 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
                                   getTitlesWidget: (value, meta) {
                                     if (activeTab == 0) {
                                       return Padding(
-                                        padding: EdgeInsets.only(right: 6),
+                                        padding: const EdgeInsets.only(right: 6),
                                         child: Text(
                                           '${value.toInt()}°C',
-                                          style: TextStyle(fontSize: 10),
+                                          style: const TextStyle(fontSize: 10),
                                         ),
                                       );
                                     } else if (activeTab == 1) {
                                       return Padding(
-                                        padding: EdgeInsets.only(right: 6),
+                                        padding: const EdgeInsets.only(right: 6),
                                         child: Text(
                                           '${value.toInt()}%',
-                                          style: TextStyle(fontSize: 10),
+                                          style: const TextStyle(fontSize: 10),
                                         ),
                                       );
                                     } else {
                                       return Padding(
-                                        padding: EdgeInsets.only(right: 6),
+                                        padding: const EdgeInsets.only(right: 6),
                                         child: Text(
                                           '${(value + 900).toInt()}',
-                                          style: TextStyle(fontSize: 10),
+                                          style: const TextStyle(fontSize: 10),
                                         ),
                                       );
                                     }
@@ -333,26 +460,22 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
                                     if (idx >= 0 && idx < data.length) {
                                       final ts = data[idx].timestamp!;
                                       return Padding(
-                                        padding: EdgeInsets.only(top: 4),
+                                        padding: const EdgeInsets.only(top: 4),
                                         child: Transform.rotate(
                                           angle: -0.3,
                                           child: Text(
                                             '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}',
-                                            style: TextStyle(fontSize: 9),
+                                            style: const TextStyle(fontSize: 9),
                                           ),
                                         ),
                                       );
                                     }
-                                    return Text('');
+                                    return const Text('');
                                   },
                                 ),
                               ),
-                              topTitles: AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              rightTitles: AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
+                              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                             ),
                             borderData: FlBorderData(
                               show: true,
@@ -363,8 +486,10 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
                         ),
                 ),
               ),
-      
-              SizedBox(height: 8),
+
+              const SizedBox(height: 8),
+              
+              // --- LEGENDA (BEZ ZMIAN) ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -372,21 +497,23 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
                     activeTab == 0
                         ? 'Temperatura (°C)'
                         : activeTab == 1
-                        ? 'Wilgotność (%)'
-                        : 'Ciśnienie (hPa)',
+                            ? 'Wilgotność (%)'
+                            : 'Ciśnienie (hPa)',
                     activeTab == 0
                         ? Colors.red
                         : activeTab == 1
-                        ? Colors.green
-                        : Colors.purple,
+                            ? Colors.green
+                            : Colors.purple,
                   ),
                 ],
               ),
-      
-              SizedBox(height: 8),
+
+              const SizedBox(height: 8),
+              
+              // --- INFORMACJA O PUNKTACH (BEZ ZMIAN) ---
               Container(
                 width: double.infinity,
-                padding: EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Text(
                   'Wyświetlane punkty: ${minX.toInt()} - ${maxX.toInt()} z ${data.length}',
                   style: TextStyle(fontSize: 11, color: Colors.grey[600]),
@@ -412,10 +539,9 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
             borderRadius: BorderRadius.circular(2),
           ),
         ),
-        SizedBox(width: 6),
-        Text(label, style: TextStyle(fontSize: 11)),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(fontSize: 11)),
       ],
     );
   }
 }
-// ...existing code...
