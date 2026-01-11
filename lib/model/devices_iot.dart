@@ -11,12 +11,12 @@ class EspFurnanceC02 {
 
   // Factory constructor do tworzenia z JSON
   factory EspFurnanceC02.fromJson(Map<String, dynamic> json) {
-    return EspFurnanceC02(
-      id: json['id'] ?? 0,
-      temperature: (json['temperature'] ?? 0.0).toDouble(),
-      timestamp: DateTime.parse(json['timestamp']),
-    );
-  }
+  return EspFurnanceC02(
+    id: json['id'] ?? 0,
+    temperature: (json['temperature'] ?? 0.0).toDouble(),
+    timestamp: json['timestamp'] != null ? DateTime.parse(json['timestamp']) : DateTime.now(),
+  );
+}
 
   // Konwersja do JSON
   Map<String, dynamic> toJson() {
@@ -52,14 +52,14 @@ class EspOutside_1 {
 
  
   factory EspOutside_1.fromJson(Map<String, dynamic> json) {
-    return EspOutside_1(
-      id: json['id'] ?? 0,
-      temperature: (json['temperature'] ?? 0.0).toDouble(),
-      humidity: (json['humidity'] ?? 0.0).toDouble(),
-      pressure: (json['pressure'] ?? 0.0).toDouble(),
-      timestamp: DateTime.parse(json['timestamp']),
-    );
-  }
+  return EspOutside_1(
+    id: json['id'] ?? 0,
+    temperature: (json['temperature'] ?? 0.0).toDouble(),
+    humidity: (json['humidity'] ?? 0.0).toDouble(),
+    pressure: (json['pressure'] ?? 0.0).toDouble(),
+    timestamp: json['timestamp'] != null ? DateTime.parse(json['timestamp']) : DateTime.now(),
+  );
+}
 
   
   Map<String, dynamic> toJson() {
@@ -93,12 +93,12 @@ class EspRoom1 {
 
   // Factory constructor do tworzenia z JSON
   factory EspRoom1.fromJson(Map<String, dynamic> json) {
-    return EspRoom1(
-      id: json['id'] ?? 0,
-      temperature: (json['temperature'] ?? 0.0).toDouble(),
-      timestamp: DateTime.parse(json['timestamp']),
-    );
-  }
+  return EspRoom1(
+    id: json['id'] ?? 0,
+    temperature: (json['temperature'] ?? 0.0).toDouble(),
+    timestamp: json['timestamp'] != null ? DateTime.parse(json['timestamp']) : DateTime.now(),
+  );
+}
 
   // Konwersja do JSON
   Map<String, dynamic> toJson() {

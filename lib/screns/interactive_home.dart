@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:homepulse/servises/history_servis.dart';
+import 'package:homepulse/servises/connect_server.dart';
 import '../model/devices_iot.dart';
 import 'dart:async';
 
@@ -15,31 +15,52 @@ class _InteractiveHouseMapState extends State<InteractiveHouseMap> {
   EspOutside_1? outsideData;
   EspFurnanceC02? furnaceData;
   bool isLoading = true;
+  Timer? _autoRefreshTimer;
 
   @override
   void initState() {
     super.initState();
     _fetchAllData();
+    // Odświeżanie co 30 sekund
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      _fetchAllData(quiet: true);
+    });
   }
 
-  Future<void> _fetchAllData() async {
-    setState(() => isLoading = true);
+  @override
+  void dispose() {
+    _autoRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _fetchAllData({bool quiet = false}) async {
+    if (!quiet) setState(() => isLoading = true);
+    
     try {
+      final Map<String, dynamic>? rawData = await ConnectServer.getLatestMessage();
 
-      final roomRaw = await HistoryService.getEspPokojHistory(limit: 1);
-      final outsideRaw = await HistoryService.getEspZewnatrzHistory(limit: 1);
-      final furnaceRaw = await HistoryService.getEspPiecHistory(limit: 1); 
-
-      if (mounted) {
+      if (mounted && rawData != null) {
         setState(() {
-          if (roomRaw.isNotEmpty) roomData = EspRoom1.fromJson(roomRaw.first);
-          if (outsideRaw.isNotEmpty) outsideData = EspOutside_1.fromJson(outsideRaw.first);
-          if (furnaceRaw.isNotEmpty) furnaceData = EspFurnanceC02.fromJson(furnaceRaw.first);
+          // KLUCZE MUSZĄ BYĆ IDENTYCZNE JAK W JSON:
+          // ESP_Pokoj_1, ESP_Zewnatrz_1, ESP_Piec_CO_2
+          
+          if (rawData.containsKey('ESP_Pokoj_1')) {
+            roomData = EspRoom1.fromJson(rawData['ESP_Pokoj_1']);
+          }
+          
+          if (rawData.containsKey('ESP_Zewnatrz_1')) {
+            outsideData = EspOutside_1.fromJson(rawData['ESP_Zewnatrz_1']);
+          }
+          
+          if (rawData.containsKey('ESP_Piec_CO_2')) {
+            furnaceData = EspFurnanceC02.fromJson(rawData['ESP_Piec_CO_2']);
+          }
+          
           isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint('Błąd podczas pobierania danych: $e');
+      debugPrint('Błąd parsowania danych: $e');
       if (mounted) setState(() => isLoading = false);
     }
   }
@@ -48,21 +69,20 @@ class _InteractiveHouseMapState extends State<InteractiveHouseMap> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Panel Domowy - HomePulse'),
+        title: const Text('HomePulse - Dane na żywo'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _fetchAllData,
+            onPressed: () => _fetchAllData(),
           ),
         ],
       ),
-      body: isLoading
+      body: isLoading && roomData == null
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  // --- KARTA: POKOJ 1 ---
                   _buildDataCard(
                     title: 'Pokój 1',
                     icon: Icons.meeting_room,
@@ -70,10 +90,7 @@ class _InteractiveHouseMapState extends State<InteractiveHouseMap> {
                     content: _buildRow('Temperatura', '${roomData?.temperature.toStringAsFixed(1) ?? "--"}°C'),
                     timestamp: roomData?.timeOnly,
                   ),
-
                   const SizedBox(height: 16),
-
-                  // --- KARTA: NA ZEWNATRZ ---
                   _buildDataCard(
                     title: 'Na zewnątrz',
                     icon: Icons.cloud,
@@ -89,12 +106,9 @@ class _InteractiveHouseMapState extends State<InteractiveHouseMap> {
                     ),
                     timestamp: outsideData?.timeOnly,
                   ),
-
                   const SizedBox(height: 16),
-
-                  // --- KARTA: PIEC / CO2 ---
                   _buildDataCard(
-                    title: 'Piec / System grzewczy',
+                    title: 'Piec CO',
                     icon: Icons.local_fire_department,
                     color: Colors.orange,
                     content: _buildRow('Temp. Pieca', '${furnaceData?.temperature.toStringAsFixed(1) ?? "--"}°C'),
@@ -106,14 +120,7 @@ class _InteractiveHouseMapState extends State<InteractiveHouseMap> {
     );
   }
 
-
-  Widget _buildDataCard({
-    required String title,
-    required IconData icon,
-    required Color color,
-    required Widget content,
-    String? timestamp,
-  }) {
+  Widget _buildDataCard({required String title, required IconData icon, required Color color, required Widget content, String? timestamp}) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -129,7 +136,7 @@ class _InteractiveHouseMapState extends State<InteractiveHouseMap> {
                 Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const Spacer(),
                 if (timestamp != null)
-                  Text(timestamp, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text("Godz: $timestamp", style: const TextStyle(fontSize: 11, color: Colors.grey)),
               ],
             ),
             const SizedBox(height: 20),
