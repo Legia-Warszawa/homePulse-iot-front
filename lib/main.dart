@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:homepulse/screns/starts_screen.dart';
-import 'package:homepulse/screns/tabs.dart';
 import 'package:homepulse/theme/app_theme.dart';
 
 void main() {
@@ -13,11 +12,19 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-       debugShowCheckedModeBanner: false, 
+      title: 'Home Pulse',
+      debugShowCheckedModeBanner: false,
+      
+      // 1. Motyw Jasny (Domyślny)
       theme: AppTheme.lightTheme,
-      home: TabsScreen(),
-      //const StartsScreen(),
+      
+      // 2. Motyw Ciemny (TO JEST KLUCZOWE - bez tego ani rusz)
+      darkTheme: AppTheme.darkTheme,
+      
+      // 3. Tryb automatyczny (Reaguje na ustawienia telefonu)
+      themeMode: ThemeMode.system, 
+      
+      home: const StartsScreen(),
     );
   }
 }
