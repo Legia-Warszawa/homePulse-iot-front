@@ -1,206 +1,155 @@
 import 'package:flutter/material.dart';
-import 'package:homepulse/servises/connect_server.dart';
 import 'package:homepulse/servises/history_servis.dart';
-import 'package:homepulse/widget/led_controll_widget.dart';
-import '../model/devices_iot.dart'; // Dla typu EspRoom1
+import '../model/devices_iot.dart';
+import 'dart:async';
 
-// Zakladamy, ze potrzebujemy dostepu do danych (np. temperatury)
 class InteractiveHouseMap extends StatefulWidget {
-  //final List<EspRoom1> roomData;
-
-  const InteractiveHouseMap(
-    {super.key,
-    // required this.roomData
-     });
+  const InteractiveHouseMap({super.key});
 
   @override
   State<InteractiveHouseMap> createState() => _InteractiveHouseMapState();
 }
 
 class _InteractiveHouseMapState extends State<InteractiveHouseMap> {
-  // Symulacja stanow
-  bool isKitchenLightOn = false;
-  bool isLivingRoomLightOn = false;
-  List<EspRoom1> roomData = [];
-   Map<String, dynamic>? sensorData;
-  String connectionStatus = 'Nie sprawdzono';
+  EspRoom1? roomData;
+  EspOutside_1? outsideData;
+  EspFurnanceC02? furnaceData;
+  bool isLoading = true;
 
-  void _toggleLight(String roomName, bool newState) {
-    // Tutaj nalezy wywolac API dla konkretnego urzadzenia/pomieszczenia.
-    // Na przyklad, jesli Kitchen to urzadzenie "ESP-KITCHEN":
-    // LedControlWidget().createState()._setLedState(newState ? 'on' : 'off', deviceId: 'ESP-KITCHEN');
-    
-    setState(() {
-      if (roomName == 'Kitchen') {
-        isKitchenLightOn = newState;
-      } else if (roomName == 'Living') {
-        isLivingRoomLightOn = newState;
-      }
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Wysłano polecenie do $roomName: ${newState ? 'Włączono' : 'Wyłączono'}'),
-        duration: const Duration(milliseconds: 1500),
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _fetchAllData();
   }
 
-  Future<void> uploadData() async {
-    setState(() {
-      sensorData = null;
-      roomData.clear();
-    });
+  Future<void> _fetchAllData() async {
+    setState(() => isLoading = true);
     try {
-       var message = await ConnectServer.getLatestMessage();
 
-      var piecRoomRaw = await HistoryService.getEspPokojHistory(limit: 1000);
-      roomData = piecRoomRaw
-          .map((json) => EspRoom1.fromJson(json))
-          .toList();
-      print('Pokój - ilość rekordów: ${roomData.length}');
+      final roomRaw = await HistoryService.getEspPokojHistory(limit: 1);
+      final outsideRaw = await HistoryService.getEspZewnatrzHistory(limit: 1);
+      final furnaceRaw = await HistoryService.getEspPiecHistory(limit: 1); 
 
-      setState(() {
-           if (roomData.isNotEmpty) {
-             connectionStatus = 'Połączenie OK! Pobrano dane historyczne.';
-             sensorData = message;
-           }else {
-             connectionStatus = 'Połączenie OK, ale brak danych historycznych.';
-          sensorData = message;
-           }
-      });
+      if (mounted) {
+        setState(() {
+          if (roomRaw.isNotEmpty) roomData = EspRoom1.fromJson(roomRaw.first);
+          if (outsideRaw.isNotEmpty) outsideData = EspOutside_1.fromJson(outsideRaw.first);
+          if (furnaceRaw.isNotEmpty) furnaceData = EspFurnanceC02.fromJson(furnaceRaw.first);
+          isLoading = false;
+        });
+      }
     } catch (e) {
-        print('BŁĄD podczas pobierania danych: $e');
-      setState(() {
-        connectionStatus = 'Błąd połączenia: $e';
-        sensorData = null;
-      
-      });
+      debugPrint('Błąd podczas pobierania danych: $e');
+      if (mounted) setState(() => isLoading = false);
     }
-  }
-
-  // Pomocniczy widzet wlacznika swiatla z pozycjonowaniem procentowym
-  Widget _buildLightSwitch(String roomName, double fractionalX, double fractionalY, bool isOn) {
-    return Align(
-        alignment: FractionalOffset(fractionalX, fractionalY),
-        
-        child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-                IconButton(
-                    iconSize: 30,
-                    icon: Icon(
-                        isOn ? Icons.lightbulb : Icons.lightbulb_outline,
-                        color: isOn ? Colors.amber : Colors.grey.shade600,
-                    ),
-                    onPressed: () {
-                        _toggleLight(roomName, !isOn);
-                    },
-                ),
-                Text(
-                    roomName,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-            ],
-        ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final double roomTemp = roomData.isNotEmpty ? roomData.last.temperature : 0.0;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Interaktywny Plan Domu'),
+        title: const Text('Panel Domowy - HomePulse'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchAllData,
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            children: [
-              const LedControlWidget(),
-              Card(
-             margin: const EdgeInsets.all(16.0),
-             elevation: 4,
-            clipBehavior: Clip.hardEdge,
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 8.0, left: 8.0),
-                    child: Text(
-                      'Interaktywny Plan Domu',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
+                  // --- KARTA: POKOJ 1 ---
+                  _buildDataCard(
+                    title: 'Pokój 1',
+                    icon: Icons.meeting_room,
+                    color: Colors.blue,
+                    content: _buildRow('Temperatura', '${roomData?.temperature.toStringAsFixed(1) ?? "--"}°C'),
+                    timestamp: roomData?.timeOnly,
                   ),
-                  
-                  SizedBox(
-                    height: 400, // ustalona wysokość mapy
-                    width: double.infinity,
-                    child: ClipRect( // zapobiega overflow w poziomie
-                      child: Stack(
-                        children: [
-                          // 1. Warstwa bazowa: Obraz mapy
-                          Positioned.fill(
-                            child: Image.asset(
-                              'assets/floorplan.png',
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-           
-                         // 2. Wlacznik w Kuchni/Jadalni (lewy gorny)
-                         _buildLightSwitch(
-                           'Kitchen', 
-                           0.40, // X: ~20% szerokosci
-                           0.30, // Y: ~15% wysokosci
-                           isKitchenLightOn,
-                         ),
-           
-                         // 3. Wlacznik w Salonie (prawy gorny)
-                         _buildLightSwitch(
-                           'Living', 
-                           0.57, // X: ~75% szerokosci
-                           0.25, // Y: ~15% wysokosci
-                           isLivingRoomLightOn,
-                         ),
-                         
-                         // 4. Wskaznik temperatury Pokoju 1 (dolny lewy rog)
-                         Align(
-                           alignment: const FractionalOffset(0.63, 0.85), // Koordynaty nad toaleta
-                           child: Column(
-                             mainAxisSize: MainAxisSize.min,
-                             children: [
-                               const Icon(Icons.thermostat, color: Colors.blue, size: 30),
-                               Text(
-                                 roomData.isNotEmpty ? '${roomTemp.toStringAsFixed(1)}°C' : 'Ładowanie...',
-                                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                               ),
-                               const Text('Pokój 1', style: TextStyle(fontSize: 10)),
-                             ],
-                           ),
-                         ),
-                       ],
-                     ),
-                   ),
-                 ),
-                 
-                  const SizedBox(height: 10),
-                  Center(
-                    child: Text(
-                      'Statusy: Kuchnia: ${isKitchenLightOn ? "WŁ" : "WYŁ"} | Salon: ${isLivingRoomLightOn ? "WŁ" : "WYŁ"}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+
+                  const SizedBox(height: 16),
+
+                  // --- KARTA: NA ZEWNATRZ ---
+                  _buildDataCard(
+                    title: 'Na zewnątrz',
+                    icon: Icons.cloud,
+                    color: Colors.green,
+                    content: Column(
+                      children: [
+                        _buildRow('Temperatura', '${outsideData?.temperature.toStringAsFixed(1) ?? "--"}°C'),
+                        const Divider(),
+                        _buildRow('Wilgotność', '${outsideData?.humidity.toStringAsFixed(1) ?? "--"}%'),
+                        const Divider(),
+                        _buildRow('Ciśnienie', '${outsideData?.pressure.toStringAsFixed(0) ?? "--"} hPa'),
+                      ],
                     ),
+                    timestamp: outsideData?.timeOnly,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // --- KARTA: PIEC / CO2 ---
+                  _buildDataCard(
+                    title: 'Piec / System grzewczy',
+                    icon: Icons.local_fire_department,
+                    color: Colors.orange,
+                    content: _buildRow('Temp. Pieca', '${furnaceData?.temperature.toStringAsFixed(1) ?? "--"}°C'),
+                    timestamp: furnaceData?.timeOnly,
                   ),
                 ],
               ),
             ),
-          ),
+    );
+  }
+
+
+  Widget _buildDataCard({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required Widget content,
+    String? timestamp,
+  }) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 28),
+                const SizedBox(width: 10),
+                Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Spacer(),
+                if (timestamp != null)
+                  Text(timestamp, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
+            ),
+            const SizedBox(height: 20),
+            content,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 16)),
+          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         ],
       ),
-    ),
-      ),
-   );
- }
+    );
+  }
 }
