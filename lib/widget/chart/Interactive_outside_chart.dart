@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart'; // Wymagane do formatowania daty
+import 'package:intl/intl.dart';
 import '../../model/devices_iot.dart';
 import '../../widget/quick_date_button.dart';
 
@@ -63,7 +63,7 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
 
   List<EspOutside_1> get _activeData => _getFilteredDataByDay();
 
-  // --- ORYGINALNE KOLORY I STYLE ---
+  // --- KOLORY I STYLE (Twoje oryginalne) ---
   List<LineChartBarData> _barsForTab(int tab) {
     final list = _activeData;
     final spots = list.asMap().entries.map((e) {
@@ -93,6 +93,7 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
         barWidth: 2,
         dotData: FlDotData(show: false),
         preventCurveOverShooting: true,
+        belowBarData: BarAreaData(show: false), // Brak tła pod wykresem
       ),
     ];
   }
@@ -148,6 +149,32 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
     }
   }
 
+  // --- GESTY ---
+  void _handleDragUpdate(DragUpdateDetails details, double chartWidth) {
+    if (_activeData.isEmpty) return;
+    
+    final double range = maxX - minX;
+    final double sensitivity = range / chartWidth; 
+    final double delta = -details.primaryDelta! * sensitivity;
+
+    setState(() {
+      double newMinX = minX + delta;
+      double newMaxX = maxX + delta;
+
+      if (newMinX < 0) {
+        newMinX = 0;
+        newMaxX = range;
+      }
+      if (newMaxX > _activeData.length) {
+        newMaxX = _activeData.length.toDouble();
+        newMinX = newMaxX - range;
+      }
+
+      minX = newMinX;
+      maxX = newMaxX;
+    });
+  }
+
   void _panLeft() {
     setState(() {
       if (minX > 0) {
@@ -199,10 +226,9 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
   Widget build(BuildContext context) {
     final data = _getFilteredDataByDay();
     final mq = MediaQuery.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    // --- ZMIANA 1: ZWIĘKSZONA WYSOKOŚĆ ---
-    // Było 0.35, dajemy 0.55 żeby wykres był duży i czytelny
     final double chartHeight = (mq.size.height * 0.55).clamp(
       250.0,
       mq.size.height * 0.75,
@@ -217,7 +243,7 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- ZMIANA 2: NAGŁÓWEK Z DATĄ W ROGU ---
+              // --- NAGŁÓWEK ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -226,72 +252,86 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   
-                  // Kapsułka z datą (Strzałki + Kalendarz) w prawym rogu
-                  Container(
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[100],
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.chevron_left, size: 20),
-                          onPressed: widget.onSelectPreviousDay,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 32),
-                        ),
-                        InkWell(
-                          onTap: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: widget.selectedDate ?? DateTime.now(),
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime.now(),
-                            );
-                            if (picked != null) {
-                              widget.onDateSelected?.call(picked);
-                            }
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.calendar_today, size: 14),
-                                const SizedBox(width: 4),
-                                Text(
-                                  widget.selectedDate != null
-                                      ? DateFormat('dd.MM.yyyy').format(widget.selectedDate!)
-                                      : 'Wybierz datę',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  // --- NOWY UKŁAD: STRZAŁKI NA ZEWNĄTRZ ---
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Strzałka w lewo
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left, size: 24),
+                        color: isDark ? Colors.white : Colors.black87, // Kolor adaptacyjny
+                        onPressed: widget.onSelectPreviousDay,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(), // Usuwa domyślne marginesy
+                        tooltip: 'Poprzedni dzień',
+                      ),
+                      
+                      const SizedBox(width: 8),
+
+                      // Kapsułka z datą (mniejsza)
+                      InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: widget.selectedDate ?? DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime.now(),
+                          );
+                          if (picked != null) {
+                            widget.onDateSelected?.call(picked);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          height: 24, // Mniejsza wysokość
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary, // Tło Primary
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          alignment: Alignment.center,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.calendar_today, size: 14, color: Colors.white),
+                              const SizedBox(width: 6),
+                              Text(
+                                widget.selectedDate != null
+                                    ? DateFormat('dd/MM').format(widget.selectedDate!)
+                                    : 'Data',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: 13,
+                                  color: Colors.white,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.chevron_right, size: 20),
-                          onPressed: widget.onSelectNextDay,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 32),
-                        ),
-                      ],
-                    ),
+                      ),
+
+                      const SizedBox(width: 8),
+
+                      // Strzałka w prawo
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right, size: 24),
+                        color: isDark ? Colors.white : Colors.black87, // Kolor adaptacyjny
+                        onPressed: widget.onSelectNextDay,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Następny dzień',
+                      ),
+                    ],
                   ),
                 ],
               ),
               
               const SizedBox(height: 12),
 
-              // --- SZYBKIE FILTRY (Dziś/Wczoraj/7 dni) ---
-              // Zostawiamy je pod tytułem, bo są wygodne
+              // --- FILTRY ---
               widget.onSelectToday != null
                   ? SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: SizedBox(
-                        // width: MediaQuery.of(context).size.width, // Opcjonalne
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -334,7 +374,7 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
               
               const SizedBox(height: 8),
 
-              // --- PRZYCISKI KONTROLNE (STARE IKONY) ---
+              // --- KONTROLKI ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -348,7 +388,7 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
 
               const SizedBox(height: 12),
 
-              // --- WYKRES (ORYGINALNY WYGLĄD + WIĘKSZY ROZMIAR) ---
+              // --- WYKRES ---
               Container(
                 height: chartHeight,
                 width: double.infinity,
@@ -366,122 +406,126 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
                             style: TextStyle(color: Colors.grey[600]),
                           ),
                         )
-                      : LineChart(
-                          LineChartData(
-                            minX: minX,
-                            maxX: maxX,
-                            minY: minY,
-                            maxY: maxY,
-                            clipData: FlClipData.all(),
-                            lineTouchData: LineTouchData(
-                              enabled: true,
-                              touchTooltipData: LineTouchTooltipData(
-                                // STARY STYL TOOLTIPA (z poprawką na nowe API)
-                                tooltipPadding: const EdgeInsets.all(8),
-                                tooltipMargin: 12,
-                                fitInsideHorizontally: true,
-                                fitInsideVertically: true,
-                                getTooltipItems: (touchedSpots) {
-                                  return touchedSpots.map((spot) {
-                                        final idx = spot.x.toInt();
-                                        if (idx >= 0 && idx < data.length) {
-                                          final d = data[idx];
-                                          if (activeTab == 0) {
-                                            return LineTooltipItem(
-                                              'Temp: ${d.temperature.toStringAsFixed(1)}°C\n${d.timestamp!.hour.toString().padLeft(2, '0')}:${d.timestamp!.minute.toString().padLeft(2, '0')}',
-                                              TextStyle(color: Theme.of(context).cardTheme.color),
-                                            );
-                                          } else if (activeTab == 1) {
-                                            return LineTooltipItem(
-                                              'Wilgotność: ${d.humidity.toStringAsFixed(1)}%\n${d.timestamp!.hour.toString().padLeft(2, '0')}:${d.timestamp!.minute.toString().padLeft(2, '0')}',
-                                              TextStyle(color: Theme.of(context).cardTheme.color),
-                                            );
-                                          } else {
-                                            return LineTooltipItem(
-                                              'Ciśnienie: ${d.pressure.toStringAsFixed(0)} hPa\n${d.timestamp!.hour.toString().padLeft(2, '0')}:${d.timestamp!.minute.toString().padLeft(2, '0')}',
-                                              TextStyle(color: Theme.of(context).cardTheme.color),
-                                            );
+                      : GestureDetector(
+                          onHorizontalDragUpdate: (details) {
+                            final width = context.size?.width ?? mq.size.width;
+                            _handleDragUpdate(details, width);
+                          },
+                          child: LineChart(
+                            LineChartData(
+                              minX: minX,
+                              maxX: maxX,
+                              minY: minY,
+                              maxY: maxY,
+                              clipData: FlClipData.all(),
+                              lineTouchData: LineTouchData(
+                                enabled: true,
+                                touchTooltipData: LineTouchTooltipData(
+                                  tooltipPadding: const EdgeInsets.all(8),
+                                  tooltipMargin: 12,
+                                  getTooltipColor: (touchedSpot) => isDark ? Colors.white : Colors.black87,
+                                  getTooltipItems: (touchedSpots) {
+                                    return touchedSpots.map((spot) {
+                                          final idx = spot.x.toInt();
+                                          if (idx >= 0 && idx < data.length) {
+                                            final d = data[idx];
+                                            if (activeTab == 0) {
+                                              return LineTooltipItem(
+                                                'Temp: ${d.temperature.toStringAsFixed(1)}°C\n${d.timestamp!.hour.toString().padLeft(2, '0')}:${d.timestamp!.minute.toString().padLeft(2, '0')}',
+                                                TextStyle(color: isDark ? Colors.black : Colors.white),
+                                              );
+                                            } else if (activeTab == 1) {
+                                              return LineTooltipItem(
+                                                'Wilgotność: ${d.humidity.toStringAsFixed(1)}%\n${d.timestamp!.hour.toString().padLeft(2, '0')}:${d.timestamp!.minute.toString().padLeft(2, '0')}',
+                                                TextStyle(color: isDark ? Colors.black : Colors.white),
+                                              );
+                                            } else {
+                                              return LineTooltipItem(
+                                                'Ciśnienie: ${d.pressure.toStringAsFixed(0)} hPa\n${d.timestamp!.hour.toString().padLeft(2, '0')}:${d.timestamp!.minute.toString().padLeft(2, '0')}',
+                                                TextStyle(color: isDark ? Colors.black : Colors.white),
+                                              );
+                                            }
                                           }
-                                        }
-                                        return null;
-                                      })
-                                      .whereType<LineTooltipItem>()
-                                      .toList();
-                                },
-                              ),
-                            ),
-                            gridData: FlGridData(
-                              show: true,
-                              horizontalInterval: (maxY - minY) / 8,
-                              verticalInterval: (maxX - minX) / 6,
-                            ),
-                            titlesData: FlTitlesData(
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 60,
-                                  interval: (maxY - minY) / 8,
-                                  getTitlesWidget: (value, meta) {
-                                    if (activeTab == 0) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(right: 6),
-                                        child: Text(
-                                          '${value.toInt()}°C',
-                                          style: const TextStyle(fontSize: 10),
-                                        ),
-                                      );
-                                    } else if (activeTab == 1) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(right: 6),
-                                        child: Text(
-                                          '${value.toInt()}%',
-                                          style: const TextStyle(fontSize: 10),
-                                        ),
-                                      );
-                                    } else {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(right: 6),
-                                        child: Text(
-                                          '${(value + 900).toInt()}',
-                                          style: const TextStyle(fontSize: 10),
-                                        ),
-                                      );
-                                    }
+                                          return null;
+                                        })
+                                        .whereType<LineTooltipItem>()
+                                        .toList();
                                   },
                                 ),
                               ),
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 36,
-                                  interval: (maxX - minX) / 6,
-                                  getTitlesWidget: (value, meta) {
-                                    final idx = value.toInt();
-                                    if (idx >= 0 && idx < data.length) {
-                                      final ts = data[idx].timestamp!;
-                                      return Padding(
-                                        padding: const EdgeInsets.only(top: 4),
-                                        child: Transform.rotate(
-                                          angle: -0.3,
+                              gridData: FlGridData(
+                                show: true,
+                                horizontalInterval: (maxY - minY) / 8,
+                                verticalInterval: (maxX - minX) / 6,
+                              ),
+                              titlesData: FlTitlesData(
+                                leftTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    reservedSize: 60,
+                                    interval: (maxY - minY) / 8,
+                                    getTitlesWidget: (value, meta) {
+                                      if (activeTab == 0) {
+                                        return Padding(
+                                          padding: const EdgeInsets.only(right: 6),
                                           child: Text(
-                                            '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}',
-                                            style: const TextStyle(fontSize: 9),
+                                            '${value.toInt()}°C',
+                                            style: const TextStyle(fontSize: 10),
                                           ),
-                                        ),
-                                      );
-                                    }
-                                    return const Text('');
-                                  },
+                                        );
+                                      } else if (activeTab == 1) {
+                                        return Padding(
+                                          padding: const EdgeInsets.only(right: 6),
+                                          child: Text(
+                                            '${value.toInt()}%',
+                                            style: const TextStyle(fontSize: 10),
+                                          ),
+                                        );
+                                      } else {
+                                        return Padding(
+                                          padding: const EdgeInsets.only(right: 6),
+                                          child: Text(
+                                            '${(value + 900).toInt()}',
+                                            style: const TextStyle(fontSize: 10),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
                                 ),
+                                bottomTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    reservedSize: 36,
+                                    interval: (maxX - minX) / 6,
+                                    getTitlesWidget: (value, meta) {
+                                      final idx = value.toInt();
+                                      if (idx >= 0 && idx < data.length) {
+                                        final ts = data[idx].timestamp!;
+                                        return Padding(
+                                          padding: const EdgeInsets.only(top: 4),
+                                          child: Transform.rotate(
+                                            angle: -0.3,
+                                            child: Text(
+                                              '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}',
+                                              style: const TextStyle(fontSize: 9),
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                      return const Text('');
+                                    },
+                                  ),
+                                ),
+                                topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                               ),
-                              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              borderData: FlBorderData(
+                                show: true,
+                                border: Border.all(color: Colors.grey.shade400),
+                              ),
+                              lineBarsData: _barsForTab(activeTab),
                             ),
-                            borderData: FlBorderData(
-                              show: true,
-                              border: Border.all(color: Colors.grey.shade400),
-                            ),
-                            lineBarsData: _barsForTab(activeTab),
                           ),
                         ),
                 ),
@@ -489,7 +533,7 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
 
               const SizedBox(height: 8),
               
-              // --- LEGENDA (BEZ ZMIAN) ---
+              // --- LEGENDA ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -510,7 +554,7 @@ class _InteractiveOutsideChartState extends State<InteractiveOutsideChart> {
 
               const SizedBox(height: 8),
               
-              // --- INFORMACJA O PUNKTACH (BEZ ZMIAN) ---
+              // --- LICZNIK ---
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 4),

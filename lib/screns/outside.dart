@@ -101,6 +101,14 @@ class _OutsideChartScreenState extends State<OutsideChartScreen> {
         if (outsideData.isNotEmpty) {
           connectionStatus = 'Połączenie OK! Pobrano dane historyczne.';
           sensorData = message;
+          
+          final valid = outsideData.where((d) => d.timestamp != null).toList();
+          if (valid.isNotEmpty) {
+            // Sortujemy chronologicznie
+            valid.sort((a, b) => a.timestamp!.compareTo(b.timestamp!));
+            // Ustawiamy wybraną datę na ostatnią dostępną
+            selectedDate = valid.last.timestamp;
+          }
         } else {
           connectionStatus = 'Połączenie OK, ale brak danych historycznych.';
           sensorData = message;
@@ -131,7 +139,7 @@ class _OutsideChartScreenState extends State<OutsideChartScreen> {
 @override
   Widget build(BuildContext context) {
     // Pobieramy primary color raz, żeby użyć go spójnie
-    final primaryColor = const Color(0xFFFF5722); 
+    final primaryColor = const Color(0xFF2E7D32);
 
     return DefaultTabController(
       length: 3,
