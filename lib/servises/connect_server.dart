@@ -7,7 +7,7 @@ class ConnectServer {
   static const String api = 'items';
   static const String rawEndpoint = 'eventhub/raw';
 
-  // Test
+  // Test połączenia
   static Future<bool> testConnection() async {
     try {
       final response = await http

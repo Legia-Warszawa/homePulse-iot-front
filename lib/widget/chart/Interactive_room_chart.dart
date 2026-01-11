@@ -1,716 +1,287 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:homepulse/widget/quick_date_button.dart';
+import 'package:homepulse/servises/history_servis.dart';
+import 'package:intl/intl.dart'; 
 import 'dart:math' as math;
 import '../../model/devices_iot.dart';
 
 class InteractiveRoomChart extends StatefulWidget {
-  final List<EspRoom1> roomData;
+  final List<EspRoom1> roomData; // Dane początkowe (najnowsze)
 
   const InteractiveRoomChart({Key? key, required this.roomData})
-    : super(key: key);
+      : super(key: key);
 
   @override
   _InteractiveRoomChartState createState() => _InteractiveRoomChartState();
 }
 
 class _InteractiveRoomChartState extends State<InteractiveRoomChart> {
+  List<EspRoom1> _displayData = [];
   double minX = 0;
   double maxX = 50;
-  double minY = 20;
-  double maxY = 26;
-  DateTime? selectedDate;
+  double minY = 0;
+  double maxY = 1;
+  DateTime selectedDate = DateTime.now(); // Startujemy od dzisiaj
   double _tempScale = 1.0;
+  bool _isLoading = false;
 
+  @override
   void initState() {
     super.initState();
-    // nie ustawiaj selectedDate na DateTime.now() — poczekaj na dane
-    selectedDate = null;
-
-    if (widget.roomData.isNotEmpty) {
-      final validData = widget.roomData
-          .where((data) => data.timestamp != null)
-          .toList();
-      if (validData.isNotEmpty) {
-        selectedDate = validData.last.timestamp;
-        // odroczone wywołanie, żeby nie robić setState podczas init
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _updateChartData();
-        });
-      }
-    }
+    // Sortujemy i ustawiamy dane początkowe
+    _setAndSortData(widget.roomData);
+    
+    // Jeśli Twoje API wymaga daty, pobieramy historię na starcie
+    _fetchDataForDate(selectedDate);
   }
 
   @override
   void didUpdateWidget(covariant InteractiveRoomChart oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // gdy przyjdą nowe dane, ustaw selectedDate (jeśli trzeba) i przelicz zakresy
-    if (oldWidget.roomData != widget.roomData) {
-      final valid = widget.roomData.where((d) => d.timestamp != null).toList();
-      if (valid.isNotEmpty) {
-        // jeśli wcześniej nie było daty lub była ustawiona na "teraz", zaktualizuj na ostatnią
-        if (selectedDate == null || _isSameDay(selectedDate!, DateTime.now())) {
-          selectedDate = valid.last.timestamp;
-        }
+    // Jeśli nowe dane przyszły z zewnątrz (np. odświeżenie strony głównej)
+    if (oldWidget.roomData != widget.roomData && !_isLoading) {
+      _setAndSortData(widget.roomData);
+      _updateChartBounds();
+    }
+  }
+
+  // FUNKCJA POMOCNICZA: Gwarantuje sortowanie chronologiczne (rano -> wieczór)
+  void _setAndSortData(List<EspRoom1> data) {
+    final List<EspRoom1> sorted = List.from(data);
+    sorted.sort((a, b) => a.timestamp!.compareTo(b.timestamp!));
+    setState(() {
+      _displayData = sorted;
+    });
+  }
+
+  // POBIERANIE DANYCH Z API DLA NOWEJ DATY
+  Future<void> _fetchDataForDate(DateTime date) async {
+    setState(() {
+      selectedDate = date;
+      _isLoading = true;
+    });
+
+    try {
+      String formattedDate = DateFormat('yyyy-MM-dd').format(date);
+      
+      // Wykorzystujemy HistoryService (który buduje URL: baseUrl/esp-pokoj/formattedDate?limit=1000)
+      final List<Map<String, dynamic>> rawData = 
+          await HistoryService.getEspPokojHistory(date: formattedDate, limit: 1000);
+      
+      if (mounted) {
+        final List<EspRoom1> newData = rawData.map((json) => EspRoom1.fromJson(json)).toList();
+        _setAndSortData(newData);
+        _updateChartBounds();
+        setState(() => _isLoading = false);
       }
-      _updateChartData();
+    } catch (e) {
+      debugPrint('Błąd pobierania danych pokoju: $e');
+      if (mounted) {
+        setState(() {
+          _displayData = [];
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  double _safeInterval(double range, int parts, {double min = 0.1}) {
-    if (range.isNaN || range <= 0) return min;
-    final v = range / parts;
-    return (v.isNaN || v <= 0) ? min : v;
-  }
-
-  void _updateChartData() {
-    if (selectedDate == null) return;
-    final dayData = _getFilteredData();
-
-    if (dayData.isEmpty) {
-      setState(() {
-        minX = 0;
-        maxX = 0;
-        minY = 0;
-        maxY = 1;
-        _tempScale = 1.0;
-      });
+  // OBLICZANIE GRANIC WYKRESU (OŚ Y)
+  void _updateChartBounds() {
+    if (_displayData.isEmpty) {
+      setState(() { minX = 0; maxX = 50; minY = 18; maxY = 28; });
       return;
     }
 
-    // weź tylko rekordy, które faktycznie rysujesz (timestamp + temperature)
-    final plotted = dayData
-        .where((d) => d.timestamp != null && d.temperature != null)
-        .toList();
-    if (plotted.isEmpty) {
-      setState(() {
-        minX = 0;
-        maxX = 0;
-        minY = 0;
-        maxY = 1;
-        _tempScale = 1.0;
-      });
-      return;
-    }
-
-    // surowe temperatury i wykrycie skali (jak wcześniej)
-    final rawTemps = plotted.map((e) => e.temperature!.toDouble()).toList();
+    final rawTemps = _displayData.map((e) => e.temperature!.toDouble()).toList();
     final maxRaw = rawTemps.reduce((a, b) => a > b ? a : b);
-    double scale = 1.0;
-    if (maxRaw > 200.0) {
-      scale = 100.0;
-    } else if (maxRaw > 60.0) {
-      scale = 10.0;
-    } else {
-      scale = 1.0;
-    }
-    _tempScale = scale;
+    
+    // Skalowanie temperatury (obsługa różnych formatów zapisu danych)
+    _tempScale = (maxRaw > 200.0) ? 100.0 : (maxRaw > 60.0 ? 10.0 : 1.0);
 
-    // stwórz FlSpot z normalizacją (użyte też przy obliczaniu min/max)
-    final List<FlSpot> spots = plotted
-        .asMap()
-        .entries
-        .map(
-          (e) => FlSpot(
-            e.key.toDouble(),
-            e.value.temperature!.toDouble() / _tempScale,
-          ),
-        )
-        .toList();
-
-    // oblicz min/max na podstawie tych samych y które rysujesz
-    final ys = spots.map((s) => s.y).toList();
+    final ys = _displayData.map((d) => d.temperature! / _tempScale).toList();
     double tmin = ys.reduce((a, b) => a < b ? a : b);
     double tmax = ys.reduce((a, b) => a > b ? a : b);
 
-    if ((tmax - tmin).abs() < 1e-9) {
-      tmin -= 1.5;
-      tmax += 1.5;
-    } else {
-      final baseRange = tmax - tmin;
-      final visibleCount = plotted.length;
-      final extraTopFactor =
-          (0.15 + math.min(0.5, (visibleCount / 1000) * 0.5));
-      final topPad = baseRange * extraTopFactor;
-      final bottomPad = baseRange * 0.05;
-      tmin -= bottomPad;
-      tmax += topPad;
-    }
-
-    // dodatkowy margin absolutny nad maksimum (zapewni, że piki nie wystają)
-    tmax = math.max(tmax, (ys.reduce((a, b) => a > b ? a : b)) + 1.0);
+    // Marginesy osi Y
+    double range = tmax - tmin;
+    double padding = range < 0.5 ? 1.0 : range * 0.2;
 
     setState(() {
-      // X powinien odpowiadać indeksom spots: 0 .. (n-1)
       minX = 0;
-      maxX = (spots.isNotEmpty) ? (spots.length - 1).toDouble() : 0;
-      minY = tmin;
-      maxY = tmax;
+      maxX = (_displayData.length - 1).toDouble();
+      minY = tmin - padding;
+      maxY = tmax + padding;
     });
   }
 
-  // Pobierz dane dla wybranego dnia z null safety
-  List<EspRoom1> _getFilteredData() {
-    if (selectedDate == null) return [];
+  // --- NAWIGACJA I ZOOM ---
 
-    final list = widget.roomData.where((data) {
-      if (data.timestamp == null) return false;
-      return data.timestamp!.year == selectedDate!.year &&
-          data.timestamp!.month == selectedDate!.month &&
-          data.timestamp!.day == selectedDate!.day;
-    }).toList();
-
-    // sortuj rosnąco (najwcześniejsze pierwsze)
-    list.sort((a, b) => a.timestamp!.compareTo(b.timestamp!));
-    return list;
-  }
-
-  void _selectDate() async {
-    if (selectedDate == null) return;
-
-    // Znajdź pierwszą i ostatnią prawidłową datę
-    final validDates = widget.roomData
-        .where((data) => data.timestamp != null)
-        .map((data) => data.timestamp!)
-        .toList();
-
-    if (validDates.isEmpty) return;
-
-    validDates.sort();
-
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: selectedDate!,
-      firstDate: validDates.first,
-      lastDate: DateTime.now(),
-      helpText: 'Wybierz datę dla danych',
-    );
-
-    if (picked != null && picked != selectedDate) {
-      setState(() {
-        selectedDate = picked;
-        _updateChartData();
-      });
-    }
-  }
-
-  // Szybkie przyciski dla wyboru dat
-  void _selectToday() {
+  void _zoomIn() {
     setState(() {
-      selectedDate = DateTime.now();
-      _updateChartData();
+      double range = maxX - minX;
+      if (range < 2) return; // limit przybliżenia
+      double center = (minX + maxX) / 2;
+      double newRange = range * 0.6; // Przybliż o 40%
+      minX = center - newRange / 2;
+      maxX = center + newRange / 2;
     });
   }
 
-  void _selectYesterday() {
+  void _zoomOut() {
     setState(() {
-      selectedDate = DateTime.now().subtract(Duration(days: 1));
-      _updateChartData();
+      double range = maxX - minX;
+      double center = (minX + maxX) / 2;
+      double newRange = range * 1.4; // Oddal o 40%
+      minX = math.max(0, center - newRange / 2);
+      maxX = math.min((_displayData.length - 1).toDouble(), center + newRange / 2);
     });
   }
 
-  void _selectPreviousDay() {
-    if (selectedDate == null) return;
+  void _panLeft() {
     setState(() {
-      selectedDate = selectedDate!.subtract(Duration(days: 1));
-      _updateChartData();
+      double range = maxX - minX;
+      minX = math.max(0, minX - (range * 0.3));
+      maxX = minX + range;
     });
   }
 
-  void _selectNextDay() {
-    if (selectedDate == null) return;
+  void _panRight() {
     setState(() {
-      final nextDay = selectedDate!.add(Duration(days: 1));
-      if (nextDay.isBefore(DateTime.now().add(Duration(days: 1)))) {
-        selectedDate = nextDay;
-        _updateChartData();
-      }
+      double range = maxX - minX;
+      double limit = (_displayData.length - 1).toDouble();
+      maxX = math.min(limit, maxX + (range * 0.3));
+      minX = maxX - range;
     });
   }
+
+  bool _isSameDay(DateTime d1, DateTime d2) => 
+      d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
 
   @override
   Widget build(BuildContext context) {
-    final dayData = _getFilteredData();
     final theme = Theme.of(context);
-
-    final mq = MediaQuery.of(context);
-    final double chartHeight = (mq.size.height * 0.5).clamp(
-      180.0,
-      mq.size.height * 0.45,
-    );
-
-    if (selectedDate == null) {
-      return Card(
-        clipBehavior: Clip.hardEdge,
-        child: SizedBox(
-          height: chartHeight,
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 12),
-                Text(
-                  'Ładowanie danych...',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
+    final chartHeight = (MediaQuery.of(context).size.height * 0.40).clamp(200.0, 450.0);
 
     return Card(
       clipBehavior: Clip.hardEdge,
       child: Padding(
-        padding: EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Nagłówek z selektorem dat
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Temperatura - Pokój',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: _selectPreviousDay,
-                        icon: Icon(Icons.chevron_left),
-                        tooltip: 'Poprzedni dzień',
-                        padding: EdgeInsets.all(4),
-                        constraints: BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
-                        ),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: _selectDate,
-                        icon: Icon(Icons.calendar_today, size: 16),
-                        label: Text(
-                          '${selectedDate!.day.toString().padLeft(2, '0')}/${selectedDate!.month.toString().padLeft(2, '0')}',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.colorScheme.primary,
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          minimumSize: Size(0, 32),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: _selectNextDay,
-                        icon: Icon(Icons.chevron_right),
-                        tooltip: 'Następny dzień',
-                        padding: EdgeInsets.all(4),
-                        constraints: BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              SizedBox(height: 8),
-
-              // Szybkie przyciski wyboru dat
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Nagłówek: Tytuł + Nawigacja Datami
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Pokój - Historia', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Row(
                   children: [
-                    QuickDateButton(
-                      label: 'Dziś',
-                      onPressed: _selectToday,
-                      isSelected: _isSameDay(selectedDate!, DateTime.now()),
+                    IconButton(
+                      onPressed: () => _fetchDataForDate(selectedDate.subtract(const Duration(days: 1))), 
+                      icon: const Icon(Icons.chevron_left)
                     ),
-                    SizedBox(width: 8),
-                    QuickDateButton(
-                      label: 'Wczoraj',
-                      onPressed: _selectYesterday,
-                      isSelected: _isSameDay(
-                        selectedDate!,
-                        DateTime.now().subtract(Duration(days: 1)),
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    QuickDateButton(
-                      label: '7 dni temu',
+                    Text(DateFormat('dd.MM').format(selectedDate), style: const TextStyle(fontWeight: FontWeight.bold)),
+                    IconButton(
                       onPressed: () {
-                        setState(() {
-                          selectedDate = DateTime.now().subtract(
-                            Duration(days: 7),
-                          );
-                          _updateChartData();
-                        });
-                      },
-                      isSelected: _isSameDay(
-                        selectedDate!,
-                        DateTime.now().subtract(Duration(days: 7)),
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    QuickDateButton(
-                      label: 'Ostatnie dane',
-                      onPressed: () {
-                        final validData = widget.roomData
-                            .where((data) => data.timestamp != null)
-                            .toList();
-                        if (validData.isNotEmpty) {
-                          setState(() {
-                            selectedDate = validData.last.timestamp;
-                            _updateChartData();
-                          });
-                        }
-                      },
-                      isSelected: () {
-                        final validData = widget.roomData
-                            .where((data) => data.timestamp != null)
-                            .toList();
-                        return validData.isNotEmpty &&
-                            _isSameDay(
-                              selectedDate!,
-                              validData.last.timestamp!,
-                            );
-                      }(),
+                        final next = selectedDate.add(const Duration(days: 1));
+                        if (next.isBefore(DateTime.now().add(const Duration(seconds: 1)))) _fetchDataForDate(next);
+                      }, 
+                      icon: const Icon(Icons.chevron_right)
                     ),
                   ],
                 ),
-              ),
-
-              SizedBox(height: 12),
-
-              // Przyciski kontrolne wykresu
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  IconButton(
-                    onPressed: dayData.isNotEmpty ? _panLeft : null,
-                    icon: Icon(Icons.arrow_back),
-                    tooltip: 'Przesuń w lewo',
-                  ),
-                  IconButton(
-                    onPressed: dayData.isNotEmpty ? _zoomIn : null,
-                    icon: Icon(Icons.zoom_in),
-                    tooltip: 'Przybliż',
-                  ),
-                  IconButton(
-                    onPressed: dayData.isNotEmpty ? _zoomOut : null,
-                    icon: Icon(Icons.zoom_out),
-                    tooltip: 'Oddal',
-                  ),
-                  IconButton(
-                    onPressed: dayData.isNotEmpty ? _resetZoom : null,
-                    icon: Icon(Icons.refresh),
-                    tooltip: 'Reset widoku',
-                  ),
-                  IconButton(
-                    onPressed: dayData.isNotEmpty ? _panRight : null,
-                    icon: Icon(Icons.arrow_forward),
-                    tooltip: 'Przesuń w prawo',
-                  ),
-                ],
-              ),
-
-              SizedBox(height: 16),
-
-              // Wykres
-              SizedBox(
-                height: chartHeight,
-                child: Container(
-                  height: chartHeight,
-                  width: double.infinity,
-                  clipBehavior: Clip.hardEdge,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: dayData.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.no_sim,
-                                size: 48,
-                                color: Colors.grey[400],
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Brak danych',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              Text(
-                                'dla dnia ${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : LineChart(
-                          LineChartData(
-                            minX: minX,
-                            maxX: maxX,
-                            minY: minY,
-                            maxY: maxY,
-                            clipData: FlClipData.all(),
-                            lineTouchData: LineTouchData(
-                              enabled: true,
-                              touchTooltipData: LineTouchTooltipData(
-                                tooltipBorderRadius: BorderRadius.circular(8),
-                                tooltipPadding: EdgeInsets.all(8),
-                                tooltipMargin: 16,
-                                fitInsideHorizontally: true,
-                                fitInsideVertically: true,
-                                getTooltipItems: (touchedSpots) {
-                                  return touchedSpots
-                                      .map((spot) {
-                                        final idx = spot.x.toInt();
-                                        if (idx >= 0 && idx < dayData.length) {
-                                          final data = dayData[idx];
-                                          if (data.timestamp != null &&
-                                              data.temperature != null) {
-                                            final temp =
-                                                data.temperature!.toDouble() /
-                                                _tempScale;
-                                            final time =
-                                                '${data.timestamp!.hour.toString().padLeft(2, '0')}:${data.timestamp!.minute.toString().padLeft(2, '0')}';
-                                            return LineTooltipItem(
-                                              '${temp.toStringAsFixed(1)}°C\n$time',
-                                              TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 12,
-                                              ),
-                                            );
-                                          }
-                                        }
-                                        return null;
-                                      })
-                                      .whereType<LineTooltipItem>()
-                                      .toList();
-                                },
-                              ),
-                            ),
-                            gridData: FlGridData(
-                              show: true,
-                              horizontalInterval: _safeInterval(maxY - minY, 6),
-                              verticalInterval: _safeInterval(
-                                maxX - minX,
-                                6,
-                                min: 1,
-                              ),
-                            ),
-                            titlesData: FlTitlesData(
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 70,
-                                  interval: _safeInterval(maxY - minY, 5),
-                                  getTitlesWidget: (value, meta) {
-                                    return Text(
-                                      '${value.toStringAsFixed(1)}°C',
-                                      style: TextStyle(fontSize: 10),
-                                    );
-                                  },
-                                ),
-                              ),
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 50,
-                                  interval: _safeInterval(
-                                    maxX - minX,
-                                    6,
-                                    min: 1,
-                                  ),
-                                  getTitlesWidget: (value, meta) {
-                                    if (value.toInt() >= 0 &&
-                                        value.toInt() < dayData.length) {
-                                      final data = dayData[value.toInt()];
-                                      if (data.timestamp != null) {
-                                        return Padding(
-                                          padding: EdgeInsets.only(top: 8),
-                                          child: Transform.rotate(
-                                            angle: -0.5,
-                                            child: Text(
-                                              '${data.timestamp!.hour.toString().padLeft(2, '0')}:${data.timestamp!.minute.toString().padLeft(2, '0')}',
-                                              style: TextStyle(fontSize: 9),
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                    }
-                                    return Text('');
-                                  },
-                                ),
-                              ),
-                              topTitles: AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              rightTitles: AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                            ),
-                            borderData: FlBorderData(show: true),
-                            lineBarsData: [
-                              LineChartBarData(
-                                spots: dayData
-                                    .where(
-                                      (data) =>
-                                          data.timestamp != null &&
-                                          data.temperature != null,
-                                    )
-                                    .toList()
-                                    .asMap()
-                                    .entries
-                                    .map(
-                                      (e) => FlSpot(
-                                        e.key.toDouble(),
-                                        e.value.temperature!.toDouble() /
-                                            _tempScale,
-                                      ),
-                                    )
-                                    .toList(),
-                                isCurved: true,
-                                color: theme.colorScheme.primary,
-                                barWidth: 3,
-                                dotData: FlDotData(show: false),
-                              ),
-                            ],
-                          ),
-                        ),
+              ],
+            ),
+            
+            // Przyciski szybkiego wyboru daty
+            Row(
+              children: [
+                QuickDateButton(
+                  label: 'Dziś', 
+                  onPressed: () => _fetchDataForDate(DateTime.now()), 
+                  isSelected: _isSameDay(selectedDate, DateTime.now())
                 ),
-              ),
-
-              // Informacja o danych
-              GestureDetector(
-                onTap: openLimitData,
-                child: Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                    dayData.isNotEmpty
-                        ? 'Dane z ${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}: ${dayData.length} punktów'
-                        : 'Wybierz inną datę aby zobaczyć dane',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    textAlign: TextAlign.center,
-                  ),
+                const SizedBox(width: 8),
+                QuickDateButton(
+                  label: 'Wczoraj', 
+                  onPressed: () => _fetchDataForDate(DateTime.now().subtract(const Duration(days: 1))), 
+                  isSelected: _isSameDay(selectedDate, DateTime.now().subtract(const Duration(days: 1)))
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Kontrolki wykresu (Zoom i Przesuwanie)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                IconButton(onPressed: _panLeft, icon: const Icon(Icons.arrow_back)),
+                IconButton(onPressed: _zoomIn, icon: const Icon(Icons.zoom_in), color: theme.colorScheme.primary),
+                IconButton(onPressed: _zoomOut, icon: const Icon(Icons.zoom_out), color: theme.colorScheme.primary),
+                IconButton(onPressed: () => setState(() { minX = 0; maxX = (_displayData.length - 1).toDouble(); }), icon: const Icon(Icons.refresh)),
+                IconButton(onPressed: _panRight, icon: const Icon(Icons.arrow_forward)),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Obszar wykresu
+            SizedBox(
+              height: chartHeight,
+              child: _isLoading 
+                ? const Center(child: CircularProgressIndicator()) 
+                : _displayData.isEmpty 
+                  ? const Center(child: Text('Brak danych dla wybranej daty')) 
+                  : LineChart(_mainChartData()),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  bool _isSameDay(DateTime date1, DateTime date2) {
-    return date1.year == date2.year &&
-        date1.month == date2.month &&
-        date1.day == date2.day;
-  }
-
-  // Reszta metod bez zmian ale z null safety...
-  void _panLeft() {
-    final dayData = _getFilteredData();
-    setState(() {
-      if (minX > 0) {
-        double range = maxX - minX;
-        minX -= 10;
-        maxX = minX + range;
-        if (minX < 0) {
-          minX = 0;
-          maxX = range;
-        }
-      }
-    });
-  }
-
-  void _panRight() {
-    final dayData = _getFilteredData();
-    setState(() {
-      double range = maxX - minX;
-      maxX += 10;
-      minX = maxX - range;
-      if (maxX > dayData.length) {
-        maxX = dayData.length.toDouble();
-        minX = maxX - range;
-      }
-    });
-  }
-
-  void _zoomIn() {
-    setState(() {
-      double center = (minX + maxX) / 2;
-      double range = (maxX - minX) * 0.8;
-      minX = center - range / 2;
-      maxX = center + range / 2;
-    });
-  }
-
-  void _zoomOut() {
-    final dayData = _getFilteredData();
-    setState(() {
-      double center = (minX + maxX) / 2;
-      double range = (maxX - minX) * 1.25;
-      minX = center - range / 2;
-      maxX = center + range / 2;
-
-      if (minX < 0) minX = 0;
-      if (maxX > dayData.length) maxX = dayData.length.toDouble();
-    });
-  }
-
-  void _resetZoom() {
-    final dayData = _getFilteredData();
-    setState(() {
-      minX = 0;
-      maxX = dayData.length > 50 ? 50 : dayData.length.toDouble();
-    });
-  }
-
-  void openLimitData() {
-    if (selectedDate == null) return;
-
-    final dayData = _getFilteredData();
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Informacje o danych'),
-          content: Text(
-            'Wybrany dzień: ${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}\n'
-            'Punkty danych: ${dayData.length}\n'
-            'Całkowita liczba rekordów: ${widget.roomData.length}\n\n'
-            'Użyj przycisków nawigacji aby zmienić datę lub zakres wykresu.',
+  LineChartData _mainChartData() {
+    return LineChartData(
+      minX: minX, maxX: maxX, minY: minY, maxY: maxY,
+      clipData: FlClipData.all(),
+      titlesData: FlTitlesData(
+        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        leftTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true, 
+            reservedSize: 40,
+            getTitlesWidget: (val, meta) => Text('${val.toStringAsFixed(1)}°', style: const TextStyle(fontSize: 10)),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Zamknij'),
-            ),
-          ],
-        );
-      },
+        ),
+        bottomTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            reservedSize: 30,
+            interval: math.max(1, (maxX - minX) / 5),
+            getTitlesWidget: (val, meta) {
+              int i = val.toInt();
+              if (i >= 0 && i < _displayData.length) {
+                return Text(DateFormat('HH:mm').format(_displayData[i].timestamp!), style: const TextStyle(fontSize: 9));
+              }
+              return const Text('');
+            },
+          ),
+        ),
+      ),
+      gridData: const FlGridData(show: true, drawVerticalLine: false),
+      borderData: FlBorderData(show: true, border: Border.all(color: Colors.grey.shade300)),
+      lineBarsData: [
+        LineChartBarData(
+          spots: _displayData.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.temperature! / _tempScale)).toList(),
+          isCurved: true,
+          color: Colors.blue,
+          barWidth: 3,
+          dotData: const FlDotData(show: false),
+          belowBarData: BarAreaData(show: true, color: Colors.blue.withOpacity(0.1)),
+        ),
+      ],
     );
   }
 }
-
-
