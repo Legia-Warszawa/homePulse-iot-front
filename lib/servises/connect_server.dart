@@ -1,30 +1,18 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ConnectServer {
   static const String baseUrl = 'http://100.105.194.33:8000';
   static const String api = 'items';
-  static const String latestEndpoint = 'latest';
+  static const String rawEndpoint = 'eventhub/raw';
 
-
-  // Test połączenia z serwerem
+  // Test połączenia
   static Future<bool> testConnection() async {
     try {
-      if (kIsWeb) {
-        print('Testowanie połączenia w przeglądarce...');
-        var result = await getLatestMessage();
-        return result != null;
-      }
-
       final response = await http
-          .get(
-            Uri.parse('$baseUrl/'),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(const Duration(seconds: 10));
-
+          .get(Uri.parse('$baseUrl/'))
+          .timeout(const Duration(seconds: 5));
       return response.statusCode == 200;
     } catch (e) {
       print('Connection error: $e');
@@ -32,26 +20,29 @@ class ConnectServer {
     }
   }
 
-  // Tylko endpoint /items/latest
+  // Pobieranie danych z /items/eventhub/raw
   static Future<Map<String, dynamic>?> getLatestMessage() async {
     try {
-      print('Pobieranie danych z: $baseUrl/${api}/${latestEndpoint}');
+      // Budujemy nowy adres URL
+      final String fullUrl = '$baseUrl/$api/$rawEndpoint';
+      
+      print('Pobieranie danych RAW z: $fullUrl');
+      
       final response = await http
           .get(
-            Uri.parse('$baseUrl/${api}/${latestEndpoint}'),
+            Uri.parse(fullUrl),
             headers: {'Content-Type': 'application/json'},
           )
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        print('Sukces! Dane otrzymane');
         return json.decode(response.body);
       } else {
-        print('Błąd ${response.statusCode}: ${response.body}');
+        print('Błąd serwera: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('Request error: $e');
+      print('Błąd żądania (RawData): $e');
       return null;
     }
   }

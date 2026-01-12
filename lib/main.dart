@@ -12,9 +12,18 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-       debugShowCheckedModeBanner: false, // Dodaj tę linię
+      title: 'Home Pulse',
+      debugShowCheckedModeBanner: false,
+      
+      // 1. Motyw Jasny (Domyślny)
       theme: AppTheme.lightTheme,
+      
+      // 2. Motyw Ciemny (TO JEST KLUCZOWE - bez tego ani rusz)
+      darkTheme: AppTheme.darkTheme,
+      
+      // 3. Tryb automatyczny (Reaguje na ustawienia telefonu)
+      themeMode: ThemeMode.system, 
+      
       home: const StartsScreen(),
     );
   }

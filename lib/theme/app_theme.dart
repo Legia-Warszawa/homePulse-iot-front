@@ -1,44 +1,71 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
+  // --- Definicje Kolorów (ZIELONE) ---
+  
+  // LIGHT MODE
+  static const Color _lightPrimary = Color(0xFF2E7D32); // Ciemna, elegancka zieleń (Forest Green)
+  static const Color _lightOnPrimary = Colors.white;
+  static const Color _lightBackground = Color(0xFFF1F8E9); // Bardzo jasna mięta/biel
+  static const Color _lightSurface = Colors.white;
+  static const Color _lightOnSurface = Color(0xFF1B5E20); // Bardzo ciemna zieleń dla tekstu
+
+  // DARK MODE
+  static const Color _darkPrimary = Color(0xFF4CAF50); // Jaśniejsza, żywa zieleń
+  static const Color _darkOnPrimary = Colors.white;
+  static const Color _darkBackground = Color(0xFF121212); // Czysta czerń
+  static const Color _darkSurface = Color(0xFF1E1E24); // Grafit kart
+  static const Color _darkOnSurface = Color(0xFFE8F5E9); // Jasny miętowy biały dla tekstu
+
   static final ThemeData lightTheme = ThemeData(
+    useMaterial3: true,
+    brightness: Brightness.light,
+    scaffoldBackgroundColor: _lightBackground,
     colorScheme: const ColorScheme.light(
-      primary: Color(0xFFFF5722),     // #FF5722 - Pomarańczowy (poprawione)
-      secondary: Color(0xFF03A9F4),   // #03A9F4 - Niebieski (poprawione)
-      surface: Color(0xFFE1E2F5),     // #F5F5F5 - Jasny szary (poprawione)
-      onPrimary: Colors.white,
-      onSecondary: Colors.white,
-      onSurface: Colors.black87,
-      background: Color(0xFFFAFAFA),  // Tło aplikacji
-      onBackground: Colors.black87,
+      primary: _lightPrimary,
+      onPrimary: _lightOnPrimary,
+      surface: _lightSurface,
+      onSurface: _lightOnSurface,
+      secondary: Color(0xFF66BB6A), // Akcentowa zieleń
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFFFF5722),  // Użyj primary color
+      backgroundColor: _lightPrimary,
       foregroundColor: Colors.white,
+      elevation: 0,
+      centerTitle: true,
+    ),
+    cardTheme: CardThemeData(
+      color: _lightSurface,
       elevation: 2,
-      titleTextStyle: TextStyle(
-        color: Colors.white,
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
     ),
-    cardTheme: const CardThemeData(
-      color: Color(0xFFF5F5F5),  // Poprawione surface color
-      elevation: 3,
-      margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(12)),
-      ),
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Color(0xFFFF5722),
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-    ),
+  );
+
+  static final ThemeData darkTheme = ThemeData(
     useMaterial3: true,
+    brightness: Brightness.dark,
+    scaffoldBackgroundColor: _darkBackground,
+    colorScheme: const ColorScheme.dark(
+      primary: _darkPrimary,
+      onPrimary: _darkOnPrimary,
+      surface: _darkSurface,
+      onSurface: _darkOnSurface,
+      secondary: Color(0xFF81C784),
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: _darkPrimary, // Zielony AppBar w trybie ciemnym
+      foregroundColor: Colors.white,
+      elevation: 0,
+      centerTitle: true,
+    ),
+    cardTheme: CardThemeData( 
+      color: _darkSurface,
+      elevation: 4,
+      shadowColor: Colors.black54,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+    ),
+    iconTheme: const IconThemeData(
+      color: Colors.white, // Białe ikony w ciemnym motywie
+    ),
   );
 }
