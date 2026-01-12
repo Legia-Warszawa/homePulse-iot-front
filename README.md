@@ -28,7 +28,7 @@ Krótki, czytelny interfejs web / mobile dla systemu HomePulse — pobiera i wy�
 - Połączenie sieciowe z serwerem backend (adres powyżej)
 
 ## Struktura projektu (skrót)
-
+j
 - lib/
   - model/ — modele urządzeń (EspRoom1, EspOutside_1, EspFurnanceC02)
   - servises/ — komunikacja z API (connect_server, history_servis, ...)
@@ -50,10 +50,13 @@ Krótki, czytelny interfejs web / mobile dla systemu HomePulse — pobiera i wy�
    ```bash
    flutter run -d chrome --web-browser-flag "--disable-web-security"
    ```
+## Pobierz APK (test)
 
-## Testy / CI
+Zeskanuj QR aby pobrać najnowszy testowy APK (wymagane: zezwolenie na instalację z nieznanych źródeł):
 
-- (Dodaj skrypty testowe i instrukcje CI zgodnie z własnym pipeline)
+[![Pobierz APK](https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://github.com/Legia-Warszawa/homePulse-iot-front/releases/download/v.1.0.0/app-debug.apk)](https://github.com/Legia-Warszawa/homePulse-iot-front/releases/download/v.1.0.0/app-debug.apk)
+
+SHA256 (weryfikacja pliku): `sha256:d7893af7baf295d632d10addb4bebe7c1621be00cd14eae4e146e8e854b682f6`
 
 ## Contributing
 
