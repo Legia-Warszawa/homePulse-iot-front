@@ -54,7 +54,7 @@ j
 
 Zeskanuj QR aby pobrać najnowszy testowy APK (wymagane: zezwolenie na instalację z nieznanych źródeł):
 
-[![Pobierz APK](https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://github.com/Legia-Warszawa/homePulse-iot-front/releases/download/v.1.0.0/app-debug.apk)](https://github.com/Legia-Warszawa/homePulse-iot-front/releases/download/v.1.0.0/app-debug.apk)
+[![Pobierz APK](https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://github.com/Legia-Warszawa/homePulse-iot-front/releases/download/v.1.0.0/app-debug.apk)](https://github.com/Legia-Warszawa/homePulse-iot-front/releases/download/v.1.0.0/app-release.apk)
 
 SHA256 (weryfikacja pliku): `sha256:d7893af7baf295d632d10addb4bebe7c1621be00cd14eae4e146e8e854b682f6`
 
