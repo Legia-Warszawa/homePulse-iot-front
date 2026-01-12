@@ -52,13 +52,13 @@ j
    ```bash
    flutter run -d chrome --web-browser-flag "--disable-web-security"
    ```
-
+<!--
 ## Pobierz APK (test)
 
 Zeskanuj QR aby pobrać najnowszy testowy APK (wymagane: zezwolenie na instalację z nieznanych źródeł):
 
 [![Pobierz APK](https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://github.com/Legia-Warszawa/homePulse-iot-front/releases/download/v.1.0.0/app-release.apk)](https://github.com/Legia-Warszawa/homePulse-iot-front/releases/download/v.1.0.0/app-release.apk)
-
+ -->
 
 ## Contributing
 
