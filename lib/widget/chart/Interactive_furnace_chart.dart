@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:homepulse/widget/quick_date_button.dart';
 import 'package:homepulse/servises/history_servis.dart';
-import 'package:intl/intl.dart'; 
+import 'package:homepulse/widget/show_data_picker.dart';
+import 'package:intl/intl.dart';
 import 'dart:math' as math;
 import '../../model/devices_iot.dart';
 
@@ -10,7 +11,7 @@ class InteractiveFurnaceChart extends StatefulWidget {
   final List<EspFurnanceC02> furnaceData;
 
   const InteractiveFurnaceChart({Key? key, required this.furnaceData})
-      : super(key: key);
+    : super(key: key);
 
   @override
   _InteractiveFurnaceChartState createState() =>
@@ -60,11 +61,16 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
 
     try {
       String formattedDate = DateFormat('yyyy-MM-dd').format(date);
-      final List<Map<String, dynamic>> rawData = 
-          await HistoryService.getEspPiecHistory(date: formattedDate, limit: 1000);
-      
+      final List<Map<String, dynamic>> rawData =
+          await HistoryService.getEspPiecHistory(
+            date: formattedDate,
+            limit: 1000,
+          );
+
       if (mounted) {
-        final List<EspFurnanceC02> newData = rawData.map((json) => EspFurnanceC02.fromJson(json)).toList();
+        final List<EspFurnanceC02> newData = rawData
+            .map((json) => EspFurnanceC02.fromJson(json))
+            .toList();
         _setAndSortData(newData);
         _updateChartBounds();
         setState(() => _isLoading = false);
@@ -82,7 +88,12 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
 
   void _updateChartBounds() {
     if (_displayData.isEmpty) {
-      setState(() { minX = 0; maxX = 50; minY = 0; maxY = 100; });
+      setState(() {
+        minX = 0;
+        maxX = 50;
+        minY = 0;
+        maxY = 100;
+      });
       return;
     }
 
@@ -123,7 +134,10 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
       double center = (minX + maxX) / 2;
       double newRange = range * 1.4;
       minX = math.max(0, center - newRange / 2);
-      maxX = math.min((_displayData.length - 1).toDouble(), center + newRange / 2);
+      maxX = math.min(
+        (_displayData.length - 1).toDouble(),
+        center + newRange / 2,
+      );
     });
   }
 
@@ -144,13 +158,16 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
     });
   }
 
-  bool _isSameDay(DateTime d1, DateTime d2) => 
+  bool _isSameDay(DateTime d1, DateTime d2) =>
       d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final chartHeight = (MediaQuery.of(context).size.height * 0.35).clamp(200.0, 450.0);
+    final chartHeight = (MediaQuery.of(context).size.height * 0.35).clamp(
+      200.0,
+      450.0,
+    );
 
     return Card(
       child: Padding(
@@ -161,42 +178,70 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Piec - Historia', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => _fetchDataForDate(selectedDate.subtract(const Duration(days: 1))), 
-                      icon: const Icon(Icons.chevron_left)
-                    ),
-                    Text(DateFormat('dd.MM').format(selectedDate), style: const TextStyle(fontWeight: FontWeight.bold)),
-                    IconButton(
-                      onPressed: () {
-                        final next = selectedDate.add(const Duration(days: 1));
-                        if (next.isBefore(DateTime.now().add(const Duration(seconds: 1)))) _fetchDataForDate(next);
-                      }, 
-                      icon: const Icon(Icons.chevron_right)
-                    ),
-                  ],
+                const Text(
+                  'Piec - Historia',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                GestureDetector(
+                    onTap: () async {
+                    final DateTime? picked =
+                        await showChartDatePicker(context, initialDate: selectedDate);
+                    if (picked != null) {
+                      _fetchDataForDate(picked);
+                    }
+                  },
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => _fetchDataForDate(
+                          selectedDate.subtract(const Duration(days: 1)),
+                        ),
+                        icon: const Icon(Icons.chevron_left),
+                      ),
+                      Text(
+                        DateFormat('dd.MM').format(selectedDate),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          final next = selectedDate.add(const Duration(days: 1));
+                          if (next.isBefore(
+                            DateTime.now().add(const Duration(seconds: 1)),
+                          ))
+                            _fetchDataForDate(next);
+                        },
+                        icon: const Icon(Icons.chevron_right),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            
+
             // Ujednolicone Przyciski szybkiego wyboru
-            Row(
-              children: [
-                QuickDateButton(
-                  label: 'Dziś', 
-                  onPressed: () => _fetchDataForDate(DateTime.now()), 
-                  isSelected: _isSameDay(selectedDate, DateTime.now())
-                ),
-                const SizedBox(width: 8),
-                QuickDateButton(
-                  label: 'Wczoraj', 
-                  onPressed: () => _fetchDataForDate(DateTime.now().subtract(const Duration(days: 1))), 
-                  isSelected: _isSameDay(selectedDate, DateTime.now().subtract(const Duration(days: 1)))
-                ),
-              ],
-            ),
+           
+              
+               Row(
+                children: [
+                  QuickDateButton(
+                    label: 'Dziś',
+                    onPressed: () => _fetchDataForDate(DateTime.now()),
+                    isSelected: _isSameDay(selectedDate, DateTime.now()),
+                  ),
+                  const SizedBox(width: 8),
+                  QuickDateButton(
+                    label: 'Wczoraj',
+                    onPressed: () => _fetchDataForDate(
+                      DateTime.now().subtract(const Duration(days: 1)),
+                    ),
+                    isSelected: _isSameDay(
+                      selectedDate,
+                      DateTime.now().subtract(const Duration(days: 1)),
+                    ),
+                  ),
+                ],
+              ),
+            
 
             const SizedBox(height: 12),
 
@@ -204,11 +249,31 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                IconButton(onPressed: _panLeft, icon: const Icon(Icons.arrow_back)),
-                IconButton(onPressed: _zoomIn, icon: const Icon(Icons.zoom_in), color: theme.colorScheme.primary),
-                IconButton(onPressed: _zoomOut, icon: const Icon(Icons.zoom_out), color: theme.colorScheme.primary),
-                IconButton(onPressed: () => setState(() { minX = 0; maxX = (_displayData.length - 1).toDouble(); }), icon: const Icon(Icons.refresh)),
-                IconButton(onPressed: _panRight, icon: const Icon(Icons.arrow_forward)),
+                IconButton(
+                  onPressed: _panLeft,
+                  icon: const Icon(Icons.arrow_back),
+                ),
+                IconButton(
+                  onPressed: _zoomIn,
+                  icon: const Icon(Icons.zoom_in),
+                  color: theme.colorScheme.primary,
+                ),
+                IconButton(
+                  onPressed: _zoomOut,
+                  icon: const Icon(Icons.zoom_out),
+                  color: theme.colorScheme.primary,
+                ),
+                IconButton(
+                  onPressed: () => setState(() {
+                    minX = 0;
+                    maxX = (_displayData.length - 1).toDouble();
+                  }),
+                  icon: const Icon(Icons.refresh),
+                ),
+                IconButton(
+                  onPressed: _panRight,
+                  icon: const Icon(Icons.arrow_forward),
+                ),
               ],
             ),
 
@@ -217,10 +282,10 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
             // Obszar wykresu
             SizedBox(
               height: chartHeight,
-              child: _isLoading 
-                ? const Center(child: CircularProgressIndicator()) 
-                : _displayData.isEmpty 
-                  ? const Center(child: Text('Brak danych dla wybranej daty')) 
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _displayData.isEmpty
+                  ? const Center(child: Text('Brak danych dla wybranej daty'))
                   : LineChart(_mainChartData()),
             ),
           ],
@@ -231,16 +296,63 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
 
   LineChartData _mainChartData() {
     return LineChartData(
-      minX: minX, maxX: maxX, minY: minY, maxY: maxY,
+      minX: minX,
+      maxX: maxX,
+      minY: minY,
+      maxY: maxY,
       clipData: FlClipData.all(),
+
+      lineTouchData: LineTouchData(
+        handleBuiltInTouches: true,
+        touchTooltipData: LineTouchTooltipData(
+          getTooltipItems: (List<LineBarSpot> touchedSpots) {
+            return touchedSpots
+                .map((spot) {
+                  final int idx = spot.x.toInt();
+                  if (idx < 0 || idx >= _displayData.length) return null;
+                  final item = _displayData[idx];
+                  final temp = (spot.y * _tempScale).toStringAsFixed(1);
+                  final time = DateFormat('HH:mm:ss').format(item.timestamp);
+                  return LineTooltipItem(
+                    '$time\n$temp°C',
+                    const TextStyle(color: Colors.white, fontSize: 12),
+                  );
+                })
+                .whereType<LineTooltipItem>()
+                .toList();
+          },
+        ),
+        getTouchedSpotIndicator: (LineChartBarData bar, List<int> indicators) {
+          return indicators.map((i) {
+            return TouchedSpotIndicatorData(
+              FlLine(color: Colors.grey.withOpacity(0.6), strokeWidth: 1),
+              FlDotData(
+                show: true,
+                getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
+                  radius: 4,
+                  color: Colors.white,
+                  strokeColor: bar.color ?? Colors.blue,
+                  strokeWidth: 2,
+                ),
+              ),
+            );
+          }).toList();
+        },
+      ),
+
       titlesData: FlTitlesData(
         topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        rightTitles: const AxisTitles(
+          sideTitles: SideTitles(showTitles: false),
+        ),
         leftTitles: AxisTitles(
           sideTitles: SideTitles(
-            showTitles: true, 
+            showTitles: true,
             reservedSize: 40,
-            getTitlesWidget: (val, meta) => Text('${val.toStringAsFixed(0)}°', style: const TextStyle(fontSize: 10)),
+            getTitlesWidget: (val, meta) => Text(
+              '${val.toStringAsFixed(0)}°',
+              style: const TextStyle(fontSize: 10),
+            ),
           ),
         ),
         bottomTitles: AxisTitles(
@@ -251,7 +363,10 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
             getTitlesWidget: (val, meta) {
               int i = val.toInt();
               if (i >= 0 && i < _displayData.length) {
-                return Text(DateFormat('HH:mm').format(_displayData[i].timestamp), style: const TextStyle(fontSize: 9));
+                return Text(
+                  DateFormat('HH:mm').format(_displayData[i].timestamp),
+                  style: const TextStyle(fontSize: 9),
+                );
               }
               return const Text('');
             },
@@ -259,15 +374,28 @@ class _InteractiveFurnaceChartState extends State<InteractiveFurnaceChart> {
         ),
       ),
       gridData: const FlGridData(show: true, drawVerticalLine: false),
-      borderData: FlBorderData(show: true, border: Border.all(color: Colors.grey.shade300)),
+      borderData: FlBorderData(
+        show: true,
+        border: Border.all(color: Colors.grey.shade300),
+      ),
       lineBarsData: [
         LineChartBarData(
-          spots: _displayData.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.temperature / _tempScale)).toList(),
+          spots: _displayData
+              .asMap()
+              .entries
+              .map(
+                (e) =>
+                    FlSpot(e.key.toDouble(), e.value.temperature / _tempScale),
+              )
+              .toList(),
           isCurved: true,
           color: Colors.orange,
           barWidth: 3,
           dotData: const FlDotData(show: false),
-          belowBarData: BarAreaData(show: true, color: Colors.orange.withOpacity(0.1)),
+          belowBarData: BarAreaData(
+            show: true,
+            color: Colors.orange.withOpacity(0.1),
+          ),
         ),
       ],
     );
